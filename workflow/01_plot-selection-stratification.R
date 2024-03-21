@@ -9,11 +9,16 @@ library(terra)
 library(sf)
 library(tidyverse)
 
-# Specify the root of the data directory
+# Constants:
 
+# Specify the root of the data directory
 DATADIR = readLines("datadirs/datadir_derek-laptop.txt")
 
-PLOTS_PER_CAT = 2 # Number of plots per TPH-DBH category to select randomly
+# Number of plots per TPH-DBH category to select randomly
+PLOTS_PER_CAT = 2
+
+# Set random seed
+set.seed(124)
 
 ## LOAD DATA
 
@@ -91,8 +96,8 @@ for (type in unique(plots$forest_type_dy)) {
 
       n = min(nrow(plots_focaltype_tph_dbh), PLOTS_PER_CAT)
 
-      plots_focaltype_tph_dbh_sample = plots_focaltype_tph_dbh #|>
-        #slice_sample(n = n, replace = FALSE)
+      plots_focaltype_tph_dbh_sample = plots_focaltype_tph_dbh |>
+        slice_sample(n = n, replace = FALSE)
 
       # save it to the running list of selected plots
       plots_focaltype_tph_dbh_sample = plots_focaltype_tph_dbh_sample |>
@@ -108,10 +113,11 @@ for (type in unique(plots$forest_type_dy)) {
 
 ## VISUALIZE SELECTED PLOTS
 
-ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = dbh_cat, pch = project_name)) +
+ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = forest_type_dy, pch = project_name)) +
   geom_point(size = 3) +
   theme_minimal()
 
 ## LIST SELECTED PLOT IDS
 
 plots_selected$field_plot_id |> sort()
+length(plots_selected$field_plot_id)
