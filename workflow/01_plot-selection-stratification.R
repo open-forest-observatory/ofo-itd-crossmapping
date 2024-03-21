@@ -74,8 +74,8 @@ for (type in unique(plots$forest_type_dy)) {
 
     # Define DBH categories
 
-    break1 = quantile(plots_focaltype_tph$dbh_mean, 0.4)
-    break2 = quantile(plots_focaltype_tph$dbh_mean, 0.6)
+    break1 = quantile(plots_focaltype_tph$dbh_mean, 0.5)
+    break2 = quantile(plots_focaltype_tph$dbh_mean, 0.5)
 
     dbh_cats = data.frame(
       category = c("low", "high"),
@@ -92,7 +92,7 @@ for (type in unique(plots$forest_type_dy)) {
       n = min(nrow(plots_focaltype_tph_dbh), PLOTS_PER_CAT)
 
       plots_focaltype_tph_dbh_sample = plots_focaltype_tph_dbh #|>
-      #  slice_sample(n = n, replace = FALSE)
+        #slice_sample(n = n, replace = FALSE)
 
       # save it to the running list of selected plots
       plots_focaltype_tph_dbh_sample = plots_focaltype_tph_dbh_sample |>
@@ -111,3 +111,7 @@ for (type in unique(plots$forest_type_dy)) {
 ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = dbh_cat, pch = project_name)) +
   geom_point(size = 3) +
   theme_minimal()
+
+## LIST SELECTED PLOT IDS
+
+plots_selected$field_plot_id |> sort()
