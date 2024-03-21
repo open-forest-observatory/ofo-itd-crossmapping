@@ -18,7 +18,6 @@ DATADIR = readLines("datadirs/datadir_derek-laptop.txt")
 PLOTS_PER_CAT = 1
 
 # Set random seed
-set.seed(13842)
 
 ## LOAD DATA
 
@@ -42,22 +41,11 @@ types_foc = c("mixed evergreen",
               "moist mixed conifer",
               "white fir",
               "subalpine",
+              "red fir",
               "jeffrey pine")
 
 plots = plots |>
   filter(forest_type_dy %in% types_foc)
-
-
-# Define stem density (TPH) categories
-
-break1 = quantile(plots$tph, 0.4)
-break2 = quantile(plots$tph, 0.6)
-
-tph_cats = data.frame(
-  category = c("low", "high"),
-  min = c(0, break2),
-  max = c(break1, Inf)
-)
 
 
 ## Select plots
@@ -70,6 +58,17 @@ for (type in unique(plots$forest_type_dy)) {
 
   plots_focaltype = plots |>
     filter(forest_type_dy == type)
+    
+  # Define stem density (TPH) categories
+
+  break1 = quantile(plots_focaltype$tph, 0.4)
+  break2 = quantile(plots_focaltype$tph, 0.6)
+
+  tph_cats = data.frame(
+    category = c("low", "high"),
+    min = c(0, break2),
+    max = c(break1, Inf)
+  )
 
   for (i in 1:nrow(tph_cats)) {
 
@@ -113,10 +112,11 @@ for (type in unique(plots$forest_type_dy)) {
 
 ## VISUALIZE SELECTED PLOTS
 
-p = ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = forest_type_dy, pch = project_name)) +
+ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = forest_type_dy, pch = project_name)) +
+  geom_point(data = plots, color = "grey50", size = 1) +
   geom_point(size = 3) +
   theme_minimal()
-plot(p)
+
 
 ## LIST SELECTED PLOT IDS
 
