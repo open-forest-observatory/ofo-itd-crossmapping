@@ -15,10 +15,10 @@ library(tidyverse)
 DATADIR = readLines("datadirs/datadir_derek-laptop.txt")
 
 # Number of plots per TPH-DBH category to select randomly
-PLOTS_PER_CAT = 2
+PLOTS_PER_CAT = 1
 
 # Set random seed
-set.seed(124)
+set.seed(13842)
 
 ## LOAD DATA
 
@@ -79,8 +79,8 @@ for (type in unique(plots$forest_type_dy)) {
 
     # Define DBH categories
 
-    break1 = quantile(plots_focaltype_tph$dbh_mean, 0.5)
-    break2 = quantile(plots_focaltype_tph$dbh_mean, 0.5)
+    break1 = quantile(plots_focaltype_tph$dbh_mean, 0.3)
+    break2 = quantile(plots_focaltype_tph$dbh_mean, 0.7)
 
     dbh_cats = data.frame(
       category = c("low", "high"),
@@ -113,9 +113,10 @@ for (type in unique(plots$forest_type_dy)) {
 
 ## VISUALIZE SELECTED PLOTS
 
-ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = forest_type_dy, pch = project_name)) +
+p = ggplot(plots_selected, aes(x = dbh_mean, y = tph, color = forest_type_dy, pch = project_name)) +
   geom_point(size = 3) +
   theme_minimal()
+plot(p)
 
 ## LIST SELECTED PLOT IDS
 
