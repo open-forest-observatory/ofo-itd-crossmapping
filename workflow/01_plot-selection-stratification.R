@@ -1,6 +1,4 @@
-# Purpose: Aggregate and summarize geospatial data into a format that is convenient for defining plot selection.
-# Input data includes past treatments, planned future treatments, topography (elev, SRI, etc), project area bounds
-
+# Purpose: perform stratified random selection of field plots for the focal forest types
 ## SETUP
 
 # Load packages
