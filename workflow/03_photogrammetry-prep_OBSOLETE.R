@@ -1,3 +1,5 @@
+# THIS SCRIPT IS OBSOLETE BECAUSE WE CAN NOW DRAW FROM THE FULLY PROCESSED OFO DATASETS
+
 # Purpose: Prepare config files to run automate-metashape for the drone imagery sets covering the
 # selected field reference plots
 
