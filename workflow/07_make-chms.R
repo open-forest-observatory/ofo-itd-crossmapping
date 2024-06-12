@@ -9,7 +9,7 @@ library(furrr)
 # latest version of the 'main' branch. If you want to make edits and test their effect here as you
 # edit ofo-r, you could instead clone the 'ofo-r' repo to your own 'repos' folder and change the
 # path below to match where you cloned it to.
-# devtools::load_all("/ofo-share/repos-derek/ofo-r")
+# devtools::install("/ofo-share/repos-derek/ofo-r", quick = TRUE)
 devtools::load_all("/ofo-share/utils/ofo-r/")
 
 # Data paths
