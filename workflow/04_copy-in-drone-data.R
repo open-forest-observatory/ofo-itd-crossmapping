@@ -12,7 +12,7 @@ devtools::load_all("/ofo-share/utils/ofo-r")
 # Data paths
 ASSOC_TABLE_DIR = "/ofo-share/ofo-itd-crossmapping_data/site-selection/processed/"
 PROCESSED_IMAGERY_DIR_OFO = "/ofo-share/drone-imagery-processed/01/metashape-outputs/"
-PROCESSED_IMAGERY_DIR_CROSSMAPPING = "/ofo-share/ofo-itd-crossmapping_data/drone-data/"
+PROCESSED_IMAGERY_DIR_CROSSMAPPING = "/ofo-share/ofo-itd-crossmapping_data/drone/photogrammetry-outputs/"
 
 # Read in the association table
 assoc = read_csv(file.path(ASSOC_TABLE_DIR, "field-plot_drone-mission_crosswalk.csv"))
@@ -28,12 +28,6 @@ assoc = assoc |>
          dsm_mesh_dest = file.path(PROCESSED_IMAGERY_DIR_CROSSMAPPING, "dsm-mesh", str_c(field_plot_id,".tif")),
          dtm_ptcloud_dest = file.path(PROCESSED_IMAGERY_DIR_CROSSMAPPING, "dtm-ptcloud", str_c(field_plot_id,".tif")))
 
-
-
-# Get the names of the needed dsm and dtm files
-dsm_ptcloud_files = str_c(missions, "_dsm-ptcloud.tif")
-dsm_mesh_files = str_c(missions, "_dsm-mesh.tif")
-dtm_ptcloud_files = str_c(missions, "_dtm.tif")
 
 # Copy (hardlink) them into the crossmapping project directory
 file.link(assoc$dsm_ptcloud_src, assoc$dsm_ptcloud_dest)
