@@ -37,5 +37,5 @@ for (field_plot_id in assoc$field_plot_id) {
   trees_foc = trees |>
     filter(plot_id == !!field_plot_id)
 
-  trees_foc |> st_write(file.path(TREE_DATA_DIR_CROSSMAPPING, str_c(field_plot_id, ".gpkg")))
+  trees_foc |> st_write(file.path(TREE_DATA_DIR_CROSSMAPPING, str_c(field_plot_id, ".gpkg")), delete_dsn = TRUE)
 }
