@@ -100,3 +100,7 @@ for (plot_id in plot_ids) {
   vis2(pred, obs_shifted, zoom_to_obs = TRUE)
 
 }
+
+# Poorly aligned are indexes 5, 13, 22, 23
+plot_ids[c(5, 13, 22, 23 )]
+# 0015, 0046, 0105, 0110
