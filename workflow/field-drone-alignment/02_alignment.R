@@ -19,6 +19,9 @@ devtools::load_all("/ofo-share/utils/ofo-r")
 OBSERVED_UNALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/unaligned/trees/"
 OBSERVED_ALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/"
 
+OBSERVED_UNALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/unaligned/plot-bounds/"
+OBSERVED_ALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/"
+
 PRELIM_DETECTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/detected-trees_prelim/"
 
 # Determine which plots need trees detected, based on the CHMs that have been generated
@@ -34,8 +37,12 @@ for (plot_id in plot_ids) {
   obs = st_read(file.path(OBSERVED_UNALIGNED_TREES_DIR, paste0(plot_id, ".gpkg")))
   pred = st_read(file.path(PRELIM_DETECTED_TREES_DIR, paste0(plot_id, ".gpkg")))
 
-  # Prep the two tree maps (they need a x, y, and z)
-  if(sum(is.na(obs$height))/ nrow(obs) > 0.5) {
+  # Load the observed plot bounds
+  obs_bounds = st_read(file.path(OBSERVED_UNALIGNED_PLOTBOUNDS_DIR, paste0(plot_id, ".gpkg")))
+  obs_bounds = obs_bounds |> st_transform(crs = 3310)
+
+  # Prep the two tree maps for alignment (they need a x, y, and z)
+  if (sum(is.na(obs$height)) / nrow(obs) > 0.5) {
     stop("More than 50% of the observed tree heights are missing for plot_id ", plot_id)
   }
   obs = st_transform(obs, crs = 3310) # TODO: make this more general with a latlon-to-utm function
@@ -75,24 +82,24 @@ for (plot_id in plot_ids) {
                   objective_fn = obj_mean_dist_to_closest,
                   parallel = FALSE)
 
-  # Apply this shift to the observed trees
-  # Get observed tree coords
-  coords = st_coordinates(obs_sf)
-  obs_nogeom = st_drop_geometry(obs_sf)
-  obs_nogeom$x = coords[, 1] + shift$shift_x
-  obs_nogeom$y = coords[, 2] + shift$shift_y
-
-  obs_shifted = st_as_sf(obs_nogeom, crs = 3310, coords = c("x", "y"))
-
-  # Write
+  # Apply this shift to the observed trees and write
+  geom = st_geometry(obs_sf)
+  geom_shifted = geom + c(shift$shift_x, shift$shift_y)
+  obs_shifted = st_set_geometry(obs_sf, geom_shifted)
   st_write(obs_shifted, file.path(OBSERVED_ALIGNED_TREES_DIR, paste0(plot_id, ".gpkg")), delete_dsn = TRUE)
+
+  # Apply this shift to the plot bounds and write
+  obs_bounds_geom = st_geometry(obs_bounds)
+  obs_bounds_geom_shifted = obs_bounds_geom + c(shift$shift_x, shift$shift_y)
+  obs_bounds_shifted = st_set_geometry(obs_bounds, obs_bounds_geom_shifted)
+  st_write(obs_bounds_shifted, file.path(OBSERVED_ALIGNED_PLOTBOUNDS_DIR, paste0(plot_id, ".gpkg")), delete_dsn = TRUE)
 
   # Visualize
   obs_shifted_coords = st_coordinates(obs_shifted)
   obs_shifted = obs_shifted |>
     mutate(x = obs_shifted_coords[, 1],
-          y = obs_shifted_coords[, 2],
-          z = height)
+           y = obs_shifted_coords[, 2],
+           z = height)
   obs_shifted = st_drop_geometry(obs_shifted)
   obs_shifted = obs_shifted |>
     select(x, y, z)
