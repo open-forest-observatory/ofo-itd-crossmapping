@@ -22,7 +22,7 @@ OBSERVED_ALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-referen
 OBSERVED_UNALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/unaligned/plot-bounds/"
 OBSERVED_ALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/"
 
-PRELIM_DETECTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/detected-trees_prelim/"
+PRELIM_DETECTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees_prelim/"
 
 # Determine which plots need trees detected, based on the CHMs that have been generated
 plot_ids = list.files(file.path(PRELIM_DETECTED_TREES_DIR), pattern = ".gpkg") |>
@@ -31,7 +31,7 @@ plot_ids = list.files(file.path(PRELIM_DETECTED_TREES_DIR), pattern = ".gpkg") |
 plot_id = plot_ids[1]
 
 
-for (plot_id in plot_ids) {
+align_plot = function(plot_id) {
 
   # Load the two tree maps
   obs = st_read(file.path(OBSERVED_UNALIGNED_TREES_DIR, paste0(plot_id, ".gpkg")))
@@ -85,12 +85,14 @@ for (plot_id in plot_ids) {
   # Apply this shift to the observed trees and write
   geom = st_geometry(obs_sf)
   geom_shifted = geom + c(shift$shift_x, shift$shift_y)
+  st_crs(geom_shifted) = st_crs(geom)
   obs_shifted = st_set_geometry(obs_sf, geom_shifted)
   st_write(obs_shifted, file.path(OBSERVED_ALIGNED_TREES_DIR, paste0(plot_id, ".gpkg")), delete_dsn = TRUE)
 
   # Apply this shift to the plot bounds and write
   obs_bounds_geom = st_geometry(obs_bounds)
   obs_bounds_geom_shifted = obs_bounds_geom + c(shift$shift_x, shift$shift_y)
+  st_crs(obs_bounds_geom_shifted) = st_crs(obs_bounds_geom)
   obs_bounds_shifted = st_set_geometry(obs_bounds, obs_bounds_geom_shifted)
   st_write(obs_bounds_shifted, file.path(OBSERVED_ALIGNED_PLOTBOUNDS_DIR, paste0(plot_id, ".gpkg")), delete_dsn = TRUE)
 
@@ -108,6 +110,10 @@ for (plot_id in plot_ids) {
 
 }
 
+future::plan("multisession")
+furrr::future_walk(plot_ids, align_plot)
+
+
 # Poorly aligned are indexes 5, 13, 22, 23
-plot_ids[c(5, 13, 22, 23 )]
+plot_ids[c(5, 13, 22, 23)]
 # 0015, 0046, 0105, 0110

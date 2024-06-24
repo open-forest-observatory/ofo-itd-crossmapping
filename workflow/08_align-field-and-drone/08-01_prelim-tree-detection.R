@@ -10,17 +10,17 @@ library(furrr)
 # latest version of the 'main' branch. If you want to make edits and test their effect here as you
 # edit ofo-r, you could instead clone the 'ofo-r' repo to your own 'repos' folder and change the
 # path below to match where you cloned it to.
-# devtools::install("/ofo-share/repos-derek/ofo-r")
+# devtools::install("/ofo-share/repos-derek/ofo-r"); library(ofo)
 devtools::load_all("/ofo-share/utils/ofo-r")
 
 # Data paths
-CHM_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms/"
+CHM_UNCROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-uncropped/"
 # ^ within this folder, we assume there are 'chm-mesh' and 'chm-ptcloud' subfolders
 
-PRELIM_DETECTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/detected-trees_prelim/"
+PRELIM_DETECTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees_prelim/"
 
 # Determine which plots need trees detected, based on the CHMs that have been generated
-plot_ids = list.files(file.path(CHM_DIR, "chm-mesh"), pattern = ".tif") |>
+plot_ids = list.files(file.path(CHM_UNCROPPED_DIR, "chm-mesh"), pattern = ".tif") |>
   str_remove(".tif")
 
 
@@ -35,7 +35,7 @@ ws = function(x) {
 
 detect_and_write = function(plot_id) {
 
-  chm = rast(file.path(CHM_DIR, "chm-mesh", str_c(plot_id, ".tif")))
+  chm = rast(file.path(CHM_UNCROPPED_DIR, "chm-mesh", str_c(plot_id, ".tif")))
 
   ttops = detect_trees2(chm, ws)
 
