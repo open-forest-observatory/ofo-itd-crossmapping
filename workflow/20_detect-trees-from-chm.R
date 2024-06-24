@@ -56,15 +56,14 @@ make_win_fun = function(a, b, c, min_ht = 2, max_ht = 50, min_rad = 1, max_rad =
 
 # For a provided plot ID, and set of ITD parameter constants, detect trees from a CHM and
 # return the result as a sf object.
-itd_from_chm = function(plot_id,
-                                 chm_dir,
-                                 chm_res,
-                                 chm_smooth,
-                                 itd_a,
-                                 itd_b,
-                                 itd_c,
-                                 itd_params_id,
-                                 datadir = datadir) {
+predict_trees_from_chm = function(chm,
+                                  chm_res,
+                                  chm_smooth,
+                                  itd_a,
+                                  itd_b,
+                                  itd_c,
+                                  itd_params_id,
+                                  datadir = datadir) {
 
   # Resample it to the specified res
   chm_resamp = terra::project(chm, terra::crs(chm), res = chm_res, method = "bilinear")
@@ -79,14 +78,17 @@ itd_from_chm = function(plot_id,
 
 }
 
+# This function is a wrapper for the more generalized tree detection function that addes the
+# functionality specifie to the crossmapping project, like interfacing to our file storage system
+# and reading and writing files in the correct format and directory structure.
 itd_chm_to_ttops_gpkg = function(plot_id,
-                                           chm_dir = CHM_DIR,
-                                           chm_res = CHM_RES,
-                                           chm_smooth = CHM_SMOOTH,
-                                           itd_a = ITD_A,
-                                           itd_b = ITD_B,
-                                           itd_c = ITD_C,
-                                           itd_params_id = ITD_PARAMS_ID,
+                                           chm_dir,
+                                           chm_res,
+                                           chm_smooth,
+                                           itd_a,
+                                           itd_b,
+                                           itd_c,
+                                           itd_params_id,
                                            datadir = datadir) {
 
   # Get the CHM filename based on the plot ID
@@ -96,8 +98,7 @@ itd_chm_to_ttops_gpkg = function(plot_id,
   chm = rast(chm_file)
 
   # Detect trees
-  ttops = detect_trees_from_chm(plot_id,
-                      chm_dir = chm_dir,
+  ttops = predict_trees_from_chm(chm = chm,
                       chm_res = chm_res,
                       chm_smooth = chm_smooth,
                       itd_a = itd_a,
@@ -120,4 +121,12 @@ chm_files = list.files(CHM_DIR, pattern = "tif$")
 plot_ids = str_remove(chm_files, ".tif")
 
 # Detect trees for each plot. This could be parallelized with furrr::future_walk.
-walk(plot_ids, itd_chm_to_ttops_gpkg)
+walk(plot_ids, itd_chm_to_ttops_gpkg,
+     chm_dir = CHM_DIR,
+     chm_res = CHM_RES,
+     chm_smooth = CHM_SMOOTH,
+     itd_a = ITD_A,
+     itd_b = ITD_B,
+     itd_c = ITD_C,
+     itd_params_id = ITD_PARAMS_ID,
+     datadir = datadir)
