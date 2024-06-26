@@ -1,4 +1,3 @@
-
 # Purpose: For a given set of parameters (specified as constants below), detect trees from a CHM and
 # write the detected treetops to a .gpkg file
 
