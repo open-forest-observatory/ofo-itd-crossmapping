@@ -1,3 +1,5 @@
+# THIS SCRIPT IS OBSOLETE because it has been rewritten as a series of scripts from 07_make-chms.R
+# to 20_predict-trees....R.
 
 ##title: "Tree delineations using drone based point cloud data"
 
