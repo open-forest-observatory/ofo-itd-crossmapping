@@ -41,7 +41,9 @@ We can then move those functions to the ofo-r package later.
 ## Analysis workflow
 
 Scripts that run the workflow are intended to be sourced (or run interactively) in their entirety.
-They are located in the `workflow/` folder of this repo.
+They are located in the `workflow/` folder of this repo. The steps of the workflow, in order, are
+described below, along with a references to the scripts that implement them and the data files they
+operate on.
 
 ### Select plots to use for the analysis
 
@@ -133,7 +135,7 @@ this would be a single file that contains the accuracy results from each tree ma
 pretty feasible to do within this workflow because the compute for each tree map comparison is not
 very intensive.
 
-## Remaining steps
+## Steps remaining to implement
 
 Aside fromt the TO DO items associated with each existing step above, the remaining computational
 steps include:
