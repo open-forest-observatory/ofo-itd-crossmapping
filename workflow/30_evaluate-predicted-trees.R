@@ -16,14 +16,11 @@ library(sf)
 # devtools::load_all("/ofo-share/repos-derek/ofo-r")
 devtools::load_all("/ofo-share/utils/ofo-r/")
 
-## Set data directory
-datadir <- readLines(file.path("datadirs", "js2-itd-crossmapping.txt"), n = 1)
-
 ## Set constants
 
 # File paths
-CHM_DIR = file.path(datadir, "drone", "chms-cropped", "chm-mesh") # The folder containing the CHMs to use
-PREDICTED_TREES_DIR = file.path(datadir, "drone", "predicted-trees")
+CHM_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-cropped/chm-mesh/"
+PREDICTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees/"
 OBSERVED_ALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/"
 OBSERVED_ALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/"
 
