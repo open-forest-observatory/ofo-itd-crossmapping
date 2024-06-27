@@ -78,14 +78,14 @@ predict_trees_from_chm = function(chm,
 # functionality specifie to the crossmapping project, like interfacing to our file storage system
 # and reading and writing files in the correct format and directory structure.
 itd_chm_to_ttops_gpkg = function(plot_id,
-                                           chm_dir,
-                                           chm_res,
-                                           chm_smooth,
-                                           itd_a,
-                                           itd_b,
-                                           itd_c,
-                                           itd_params_id,
-                                           datadir = datadir) {
+                                 chm_dir,
+                                 chm_res,
+                                 chm_smooth,
+                                 itd_a,
+                                 itd_b,
+                                 itd_c,
+                                 itd_params_id,
+                                 datadir = datadir) {
 
   # Get the CHM filename based on the plot ID
   chm_file = file.path(chm_dir, str_c(plot_id, ".tif"))
