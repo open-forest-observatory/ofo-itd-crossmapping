@@ -175,3 +175,20 @@ for (i in 1:n_samples) {
 }
 
 
+
+# # Function to evaluate the performance of the tree detection
+# performance_metric <- function(detected_trees, ground_truth) {
+#   precision <- sum(detected_trees %in% ground_truth) / length(detected_trees)
+#   recall <- sum(detected_trees %in% ground_truth) / length(ground_truth)
+#   f1_score <- 2 * (precision * recall) / (precision + recall)
+#   return(f1_score)
+# }
+# 
+# # Loop through the parameter grid and evaluate each parameter set
+# best_params <- NULL
+# best_score <- -Inf
+# 
+# for (i in 1:nrow(param_grid)) {
+#   params <- param_grid[i, ]
+#   detected_trees <- detect_trees(las, params$ws, params$algorithm)
+#   
