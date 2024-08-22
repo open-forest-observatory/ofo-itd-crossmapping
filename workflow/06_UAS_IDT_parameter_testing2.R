@@ -47,16 +47,19 @@ PHOTOGRAMMETRY_OUTPUTS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/photogr
 
 PLOT_BOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/"
 
-CHM_OUTPUTS_UNCROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-uncropped/"
+CHM_OUTPUTS_UNCROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-uncropped/chm-ptcloud/"
 # ^ the generated chms will be saved here
 
 ASSOC_TABLE_DIR = "/ofo-share/ofo-itd-crossmapping_data/site-selection/processed/"
 
+CHM_OUTPUTS_CROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-cropped/"
+# ^ the generated chms will be saved here
 
-# set working environment
-# wd <- "C:/Users/nayani/mydata/other_projects/Open_forest_observatory/outputs/dsm_dtm"
-# setwd(wd)
+PREDICTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/treetops-output/"
+# ^ the generated tree tops geopackages will be saved here
 
+chm.files = list.files(CHM_OUTPUTS_CROPPED_DIR, pattern = "dtm-ptcloud", recursive = TRUE, full.names = FALSE)
+# ^ read the cropped chms for the tree top delinietion 
 
 ####to test the code all input parameters such as dsm, dtm, and chm smooting parameter have been hard corded.
 
@@ -73,59 +76,6 @@ chm = dsm - dtm # get the chm from already generated ones
 chm_res = 0.25
 chm_smooth = 3
 
-res_chm  <- res(chm) #[1] 0.1336096 0.1336096)
-extent_chm <- extent(chm)
-# Define the new resolution
-new_res <- chm_res # Change this value to your desired resolution
-
-# Create a template raster with the new resolution
-extent_r <- extent(chm)
-ncol_new <- ceiling((extent_r@xmax - extent_r@xmin) / new_res)
-nrow_new <- ceiling((extent_r@ymax - extent_r@ymin) / new_res)
-resampled_chm <- raster(ncol = ncol_new, nrow = nrow_new)
-
-# Set the extent of the new raster to match the original raster
-extent(resampled_chm) <- extent_chm
-
-# Set the resolution of the new raster
-res(resampled_chm) <- new_res
-
-# Resample the original raster to the new raster
-resampled_chm <- raster::resample(chm, resampled_chm, method = "ngb")  # Use "bilinear" or "ngb"
-
-
-# Smooth it with the specified smoothing window
-chm_smooth = terra::focal(resampled_chm, w = matrix(1, chm_smooth, chm_smooth), mean)
-
-chm_smooth[raster::getValues(chm_smooth) < 0] <- 0
-
-
-chm[raster::getValues(chm) < 0] <- 0
-
-
-
-####################Test with one sample parameter test
-
-# Create a function for window generation 
-
-# Define the function to generate the window size function
-
-win_fun = function(x) {
-  win = a + b * x + c * x^2
-  win[win < min_rad] = min_rad
-  win[win > max_rad] = max_rad
-  return(win)
-}
-
-make_win_fun = function(a, b, c, min_ht = 2, max_ht = 50, min_rad = 1, max_rad = 10) {
-  win_fun = function(x) {
-    win = a + b * x + c * x^2
-    win[win < min_rad] = min_rad
-    win[win > max_rad] = max_rad
-    return(win)
-  }
-  return(win_fun)
-}
 
 # Define ranges for the parameters a, b, and c
 a_range <- seq(0.1, 1.0, by= 0.2)
@@ -137,25 +87,6 @@ c_range <- seq(0, 1.0, by= 0.2)
 # Define the min and max range for window size parameter (ws)
 min_range <- 1
 max_range <- 10
-# 
-# # Randomly generate samples for a, b, and c
-# set.seed(42)  # For reproducibility
-# itd_a <- runif(1, a_range[1], a_range[2])
-# itd_b <- runif(1, b_range[1], b_range[2])
-# itd_c <- runif(1, c_range[1], c_range[2])
-
-# Create the window function using the generated parameters
-win_fun <- make_win_fun(itd_a, itd_b, itd_c)
-
-# Generate a range of window values to evaluate the window function
-win_values <- seq(min_range, max_range, by = 1)
-
-# Apply the window function to generate ws values
-ws_values <- win_fun(win_values)
-
-# Ensure ws_values are within min_range and max_range
-ws_values <- ws_values[ws_values >= min_range & ws_values <= max_range]
-
 
 # Define parameter ranges
 param_ranges <- list(
@@ -171,8 +102,6 @@ param_ranges <- list(
 # Number of random samples
 n_samples <- 30
 
-
-
 # Generate Latin Hypercube samples for numerical parameters
 lhs_samples <- randomLHS(n_samples, length(param_ranges)+1) #
 
@@ -182,38 +111,12 @@ transformed_samples <- as.data.frame(lhs_samples)
 names(transformed_samples) <- c(names(param_ranges)[1:6],"param_ID")
 
 transformed_samples$hmin <- sample(param_ranges$hmin, 30, replace = TRUE)
-transformed_samples$hmax <- 50
+transformed_samples$hmax <- sample(param_ranges$hmax, n_samples, replace = TRUE)
 transformed_samples$itd_a <- sample(param_ranges$itd_a, 30, replace = TRUE)
 transformed_samples$itd_b <- sample(param_ranges$itd_b, 30, replace = TRUE)
 transformed_samples$itd_c <- sample(param_ranges$itd_c, 30, replace = TRUE)
 transformed_samples$algorithm <-  sample(param_ranges$algorithm, n_samples, replace = TRUE)
 transformed_samples$param_ID <- sprintf("%04d", 1:n_samples)
-
-
-# Randomly assign algorithms
-set.seed(123)
-transformed_samples$algorithm <- sample(param_ranges$algorithm, n_samples, replace = TRUE)
-
-plot_num = 1
-
-# win_fun <- function(x, a, b, c){x^2*c + x*b + a} # window filter function to use in next step
-# 
-# 
-# # Function to evaluate individual tree detection
-# evaluate_detection <- function(chm, hmin, a, b,c, algorithm, plot_num) {
-#   if (algorithm == "lmf") {
-#     
-#     algo <- lmf(win_fun,shape = "circular", hmin = hmin)
-#   } else if (algorithm == "dalponte") {
-#     print("cannot_run") 
-#   }
-#   ttops = lidR::locate_trees(chm, algo)
-  out_filepath = file.path(wd, str_c(str_c("plot",plot_num,i, params$algorithm, sep="_"),".gpkg"))
-  st_write(ttops, out_filepath, delete_dsn = TRUE)
-#   return(nrow(ttops))  # Return number of detected trees as an example performance metric
-# }
-
-
 
 
 # Define an ITD variable radius window function based on the coefficients a, b, and c defined above
@@ -232,17 +135,21 @@ make_win_fun = function(a, b, c, min_ht = 2, max_ht = 50, min_rad = 1, max_rad =
 
 # For a provided plot ID, and set of ITD parameter constants, detect trees from a CHM and
 # return the result as a sf object.
-predict_trees_from_chm = function(chm,
+predict_trees_from_chm = function(plot_id,
+                                  chm_dir,
                                   chm_res,
                                   chm_smooth,
                                   itd_a,
                                   itd_b,
                                   itd_c,
-                                  itd_params_id
-                                  #datadir = datadir
-                                  ) {
+                                  itd_params_id,
+                                  datadir = datadir)
+  {
   
-  chm <- terra::rast(chm)
+  # Get the CHM filename based on the plot ID
+  chm_file = file.path(chm_dir, str_c(plot_id, ".tif"))
+  
+  chm <- terra::rast(chm_file)
   # Resample it to the specified res
   chm_resamp = terra::project(chm, terra::crs(chm), res = chm_res, method = "bilinear")
   
@@ -266,24 +173,10 @@ for (i in 1:n_samples) {
   #n_trees <- evaluate_detection(chm, params$hmin, params$itd_a, params$itd_b,params$itd_c, params$algorithm,plot_num)
   n_trees = predict_trees_from_chm(chm,chm_res = chm_res, chm_smooth = 3,itd_a = params$itd_a, itd_b = params$itd_b, itd_c = params$itd_c, itd_params_id=params$param_ID)
   results <- rbind(results, cbind(params, n_trees))
+  
 }
 
+csv_name  = file.path(PREDICTED_TREES_DIR, str_c(str_c("plot",plot_num,i, params$algorithm, sep="_"),".gpkg"))
 write.csv(results, "param_ID.csv")
 
 
-# # Function to evaluate the performance of the tree detection
-# performance_metric <- function(detected_trees, ground_truth) {
-#   precision <- sum(detected_trees %in% ground_truth) / length(detected_trees)
-#   recall <- sum(detected_trees %in% ground_truth) / length(ground_truth)
-#   f1_score <- 2 * (precision * recall) / (precision + recall)
-#   return(f1_score)
-# }
-# 
-# # Loop through the parameter grid and evaluate each parameter set
-# best_params <- NULL
-# best_score <- -Inf
-# 
-# for (i in 1:nrow(param_grid)) {
-#   params <- param_grid[i, ]
-#   detected_trees <- detect_trees(las, params$ws, params$algorithm)
-#   
