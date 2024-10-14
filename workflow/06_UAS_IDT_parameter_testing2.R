@@ -7,7 +7,7 @@
 
 #check the required libraries are available. If not install required libraries.
 
-list.of.packages <- c("tidyverse","lidR","lhs","terra","raster","rgdal","ForestTools","RCSF","sp","sf","stars","rgl")
+list.of.packages <- c("tidyverse","lidR","lhs","terra","raster","rgdal","ForestTools","RCSF","sp","sf","stars","rgl","here")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
@@ -30,6 +30,7 @@ library(lhs)
 library(caret)
 library(mlr3)
 library(mlr3tuning)
+library(here)
 #rgl::setupKnitr(autoprint = TRUE)
 
 ################################################################
@@ -52,15 +53,15 @@ CHM_OUTPUTS_UNCROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-unc
 
 ASSOC_TABLE_DIR = "/ofo-share/ofo-itd-crossmapping_data/site-selection/processed/"
 
-CHM_OUTPUTS_CROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-cropped/"
+CHM_OUTPUTS_CROPPED_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-cropped/chm-mesh/"
 # ^ the generated chms will be saved here
 
 PREDICTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/treetops-output/"
 # ^ the generated tree tops geopackages will be saved here
 
-chm.files = list.files(CHM_OUTPUTS_CROPPED_DIR, pattern = "dtm-ptcloud", recursive = TRUE, full.names = FALSE)
+chm.files = list.files(CHM_OUTPUTS_CROPPED_DIR, pattern = ".tif", recursive = TRUE, full.names = FALSE)
 # ^ read the cropped chms for the tree top delinietion 
-
+PLOT_IDs = substr(chm.files,1,nchar(chm.files)-4)
 ####to test the code all input parameters such as dsm, dtm, and chm smooting parameter have been hard corded.
 
 # dtm.files = list.files(wd, pattern = "dtm-ptcloud", recursive = TRUE, full.names = FALSE)
@@ -68,9 +69,8 @@ chm.files = list.files(CHM_OUTPUTS_CROPPED_DIR, pattern = "dtm-ptcloud", recursi
 # dtm = raster("20220622-0038_20240324T1905_dtm-ptcloud.tif")
 # dsm = raster("20220622-0038_20240324T1905_dsm-ptcloud.tif")
 
-#Get the chm generated from the ofo-r and saved in the folder already
-chm = dsm - dtm # get the chm from already generated ones
-
+# #Get the chm generated from the ofo-r and saved in the folder already
+# chm = dsm - dtm # get the chm from already generated ones
 
 # resampling and smoothing the chm for parameter testing
 chm_res = 0.25
@@ -111,7 +111,7 @@ transformed_samples <- as.data.frame(lhs_samples)
 names(transformed_samples) <- c(names(param_ranges)[1:6],"param_ID")
 
 transformed_samples$hmin <- sample(param_ranges$hmin, 30, replace = TRUE)
-transformed_samples$hmax <- sample(param_ranges$hmax, n_samples, replace = TRUE)
+transformed_samples$hmax <- rep(param_ranges$hmax, n_samples)
 transformed_samples$itd_a <- sample(param_ranges$itd_a, 30, replace = TRUE)
 transformed_samples$itd_b <- sample(param_ranges$itd_b, 30, replace = TRUE)
 transformed_samples$itd_c <- sample(param_ranges$itd_c, 30, replace = TRUE)
@@ -138,6 +138,7 @@ make_win_fun = function(a, b, c, min_ht = 2, max_ht = 50, min_rad = 1, max_rad =
 predict_trees_from_chm = function(plot_id,
                                   chm_dir,
                                   chm_res,
+                                  hmin,
                                   chm_smooth,
                                   itd_a,
                                   itd_b,
@@ -158,25 +159,40 @@ predict_trees_from_chm = function(plot_id,
   
   # Detect treetops from it with the specified window size parameters
   win_fun = make_win_fun(itd_a, itd_b, itd_c)
-  ttops = lidR::locate_trees(chm_smooth, algorithm = lmf(ws = win_fun, shape = "circular", hmin = 3))
-  out_filepath = file.path(wd, str_c(str_c("plot_", itd_params_id),".gpkg"))
+  ttops = lidR::locate_trees(chm_smooth, algorithm = lmf(ws = win_fun, shape = "circular", hmin = hmin))
+  out_filepath = file.path(datadir, str_c(str_c(plot_id, itd_params_id, sep="_"),".gpkg"))
   st_write(ttops, out_filepath, delete_dsn = TRUE)
   return(nrow(ttops))
   
 }
 
 # Evaluate all sampled parameter sets
-results <- data.frame()
-for (i in 1:n_samples) {
-  print(i)
-  params <- transformed_samples[i, ]
-  #n_trees <- evaluate_detection(chm, params$hmin, params$itd_a, params$itd_b,params$itd_c, params$algorithm,plot_num)
-  n_trees = predict_trees_from_chm(chm,chm_res = chm_res, chm_smooth = 3,itd_a = params$itd_a, itd_b = params$itd_b, itd_c = params$itd_c, itd_params_id=params$param_ID)
-  results <- rbind(results, cbind(params, n_trees))
+
+
+for (r in 1:length(PLOT_IDs)) {
+  results <- data.frame()
+  plot_id = PLOT_IDs[r]
+  chm_dir = CHM_OUTPUTS_CROPPED_DIR
+  data_dir = here::here(paste0(PREDICTED_TREES_DIR, plot_id))
+  if(!dir.exists(data_dir)){
+    dir.create(data_dir)
+  }
+    
+  for (i in 1:n_samples) {
+    print(i)
+    params <- transformed_samples[i, ]
+    #n_trees <- evaluate_detection(chm, params$hmin, params$itd_a, params$itd_b,params$itd_c, params$algorithm,plot_num)
+    n_trees = predict_trees_from_chm(plot_id = plot_id, chm_dir = chm_dir,chm_res = chm_res, hmin=params$hmin, chm_smooth = 3,itd_a = params$itd_a, itd_b = params$itd_b, itd_c = params$itd_c, itd_params_id=params$param_ID, datadir=data_dir)
+    results <- rbind(results, cbind(params, n_trees))
+    
+  }
+  
+  csv_file_path  = file.path(data_dir, str_c(str_c(plot_id,"params",sep = "_"),".csv"))
+  write.csv(results, csv_file_path)
   
 }
 
-csv_name  = file.path(PREDICTED_TREES_DIR, str_c(str_c("plot",plot_num,i, params$algorithm, sep="_"),".gpkg"))
-write.csv(results, "param_ID.csv")
+
+
 
 
