@@ -13,20 +13,18 @@ ITD_PARAMS_DEF_DIR = "/ofo-share/ofo-itd-crossmapping_data/itd-paramsets/"
 ## Processing constants for user to define
 
 # Setting an ID for the set of paramter sets allows us to generate multiple sets of parameters and track them separately, so we can revise
-PARAM_GROUP_ID = "01"
+PARAM_GROUP_ID = "04"
 
 # How many parameter sets to sample randomly from the grid?
-N_PARAMSETS = 1000
+N_PARAMSETS = 500
 
 # Define parameter ranges
 PARAM_RANGES <- list(
-  hmin = seq(2, 15, by = 1),
-  hmax = seq(20, 60, by = 10),
-  itd_a = seq(0.1, 1.0, by = 0.1),
-  itd_b = seq(0, 1.0, by = 0.1),
-  itd_c = seq(0, 1.0, by = 0.1),
-  rad_min = c(0.5, 1, 2),
-  rad_max = c(5, 10, 20)
+  lmf_a = seq(-10, 10, length.out = 10),
+  lmf_b = seq(-2, 2, length.out = 10),
+  lmf_c = seq(-0.5, 0.5, length.out = 10),
+  lmf_rad_min = seq(0.1, 5, length.out = 10),
+  lmf_rad_max = seq(2, 20, length.out = 10)
 )
 
 

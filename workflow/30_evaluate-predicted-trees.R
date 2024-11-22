@@ -37,18 +37,18 @@ MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-eva
 # Processing constants for user to define
 
 # Which group of parameter sets to evaluate
-FOC_PARAMGROUPS = c("01")
+FOC_PARAMGROUP = "04"
 
 #### Functions
 
 # Compare a predicted tree map (specified by the file name) to the observed trees from the same plot
-eval_preds = function(pred_to_eval, obs_trees, obs_bounds) {
+eval_preds = function(pred_to_eval, obs_trees, obs_bounds, predicted_trees_dir) {
 
   # Prepare to get the seconds elapsed during the evaluation
   start_time = Sys.time()
 
   # Load the predicted tree map
-  pred_trees = st_read(file.path(PREDICTED_TREES_DIR, pred_to_eval$pred_tree_file), quiet = TRUE)
+  pred_trees = st_read(file.path(predicted_trees_dir, pred_to_eval$pred_tree_file), quiet = TRUE)
   
   # Add the required x, y, and z columns to the predicted tree map
   pred_trees = st_transform(pred_trees, st_crs(obs_trees))
@@ -90,24 +90,26 @@ eval_preds = function(pred_to_eval, obs_trees, obs_bounds) {
 #### Workflow
 
 # Get list of predicted tree maps to evaluate
-pred_tree_files = list.files(PREDICTED_TREES_DIR, pattern = "gpkg$")
+pred_trees_dir = file.path(PREDICTED_TREES_DIR, paste0("paramgroup-", FOC_PARAMGROUP))
+pred_tree_files = list.files(pred_trees_dir, pattern = "gpkg$")
 
 # Make a data frame with one row per predicted tree map that also has columns for plot ID, parameter
 # group, and parameter set.
 preds_to_eval = data.frame(pred_tree_file = pred_tree_files) |>
-  mutate(paramgroup = str_sub(pred_tree_file, 12, 13),
-         paramset = str_sub(pred_tree_file, 24, 29),
-         plot_id = str_sub(pred_tree_file, 36, 39)) |>
+  mutate(paramset_id = str_sub(pred_tree_file, 10, 15),
+         plot_id = str_sub(pred_tree_file, 22, 25)) |>
   mutate()
-
-# Filter to the focal parameter groups
-preds_to_eval = preds_to_eval |>
-  filter(paramgroup %in% FOC_PARAMGROUPS)
 
 # TODO: see which have already been run (based on existence of a results file?) and skip them?
 
+
+future::plan(future::multisession)
+
 # Get a list of unique plot IDs
 plot_ids = unique(preds_to_eval$plot_id)
+
+# TEMPORARY: only run 3 plots
+plot_ids = plot_ids[1:3]
 
 # Loop through each plot ID for tree map evaluation
 match_stats = data.frame()
@@ -115,7 +117,7 @@ for (i in 1:length(plot_ids)) {
 
   plot_id_foc = plot_ids[i]
 
-  cat("Evaluating predicted tree maps for plot ID", plot_id_foc, "(", i, "of", length(plot_ids), ")\n")
+  cat("Evaluating predicted tree maps across all paramsets for plot ID", plot_id_foc, "(", i, "of", length(plot_ids), ")\n")
 
   # Load the observed tree map and plot bounds
   obs_trees = st_read(file.path(OBSERVED_ALIGNED_TREES_DIR, paste0(plot_id_foc, ".gpkg")), quiet = TRUE)
@@ -135,8 +137,7 @@ for (i in 1:length(plot_ids)) {
   preds_to_eval_list = split(preds_to_eval_focplot, seq(nrow(preds_to_eval_focplot)))
 
   # Run the evaluation function in parallel across all parameter sets for the current focal plot
-  future::plan(future::multisession)
-  match_stats_focplot_list = future_map(preds_to_eval_list, eval_preds, obs_trees, obs_bounds)
+  match_stats_focplot_list = future_map(preds_to_eval_list, eval_preds, obs_trees, obs_bounds, pred_trees_dir, .options=furrr_options(chunk_size = 5))
   match_stats_focplot = bind_rows(match_stats_focplot_list)
 
   # Append the match statistics for the focal plot to the overall match statistics
@@ -145,5 +146,5 @@ for (i in 1:length(plot_ids)) {
 }
 
 # Save the match statistics
-filename = paste0("match-stats_paramgroup-", paste(FOC_PARAMGROUPS, collapse = "-"), ".csv")
+filename = paste0("match-stats_paramgroup-", paste(FOC_PARAMGROUP, collapse = "-"), ".csv")
 write_csv(match_stats, file.path(MATCH_STATS_DIR, filename))
