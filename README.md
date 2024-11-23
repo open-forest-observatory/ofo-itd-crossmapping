@@ -13,7 +13,7 @@ within this data folder on Jetstream2 where certain data products are to be read
 There are two key folders of code in this repo. The `workflow` folder contains scripts that are
 intended to be run through in order to accomplish an objective (described below in 'Analysis
 workflow'). The `lib` folder contains files defining functions that are used in scripts in the
-`workflow` folder. At the time of writing this wtere was nothing in the `lib` folder.
+`workflow` folder. At the time of writing this there was nothing in the `lib` folder.
 
 ## Dependence on `ofo` R package
 
@@ -30,7 +30,8 @@ the functions using `devtools::load_all()`, because they don't load properly for
 You need to actually install the development version of the package with
 `devtools::install_package({path/to/ofo-r/repo})` (possibly preceded by
 `devtools::document({path/to/ofo-r/repo})` if documentation is not up to date), then load it with
-`library(ofo)`.
+`library(ofo)`. For example, if you want to install the version of the package that is in the
+`/ofo-share/utils/ofo-r` folder, you would run `devtools::install_package("/ofo-share/utils/ofo-r")`.
 
 ## Alternative approach for developing reusable functions
 
@@ -98,21 +99,23 @@ reference data, we can crop the drone data to the bounds of the field data (afte
 alignment by the previous step). We crop it with 20 m buffer so we don't truncate edge trees. This
 is performed by `09_crop-chms.R`.
 
-### Detect trees from the drone-derived CHM using a range of ITD parameters
+### Generate a list of ITD parameters to test
+
+We test a range of ITD parameters to see how they affect the accuracy of tree detection. Currently we are only using the `lmf` local maximum filter function of the lidR package. Currently the parameters we are testing are the parameters of the quadratic window size function, including min and max bounds on the function. We are using a random parameter search, whereby we randomly sample the parameter space (within specified ranges for each parameter) and generate hundreds of parameter sets to test. This is done by `21_generate-parameter-sets.R`, which saves the parameter sets as a .csv file in `/ofo-share/ofo-itd-crossmapping_data/itd-paramsets/`. It saves two files: one with a table of all parameter sets and the parameter values, and one with the parameter ranges that were used to create the parameter set. This script, and all the follow, are set up to operate on "groups" of parameter sets, so that if we want, we can run the workflow on one group of parameter sets, then revise (broaden or narrow the search based on the results), and run everything for a new group of parameter sets.
+
+Note that there are several other likely important parameters to test that we are not currently testing. These include the resolution of the CHM (currently set to 0.25 m), the amount of smoothing applied to the CHM (currently a 3-pixel moving window mean filter), and the source of the CHM (point cloud vs. mesh model). We should add these parameters to the search space.
+
+### Detect trees from the drone-derived CHM across a range of ITD parameters
 
 We detect treetops from the CHMs using `lidR::locate_trees` with the `lmf` local maximum filter
 function. This step includes resampling the CHM to a user-specified resolution and smoothing the CHM
 by a user-specified amount prior to ITD. The step allows the user to define the paramaters a, b, and
 c of a quadratic local maximum window size function *win = a + b\*x + c\*x^2*, where *x* is the
-height of the focal pixel. (The function also includes min and max caps on the window radius.)
-Currently, the values for each of these parameters are supplied as constants defined at the top of
-the script, and thus the script generates a single tree map (for each plot) using the single set of
-supplied parameters. The resulting detected treetops are saved as .gpkg files (one per each
-parameter set per each plot) to `/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees` with
+height of the focal pixel. (The function also includes min and max caps on the window diameter.)
+ This function is run once for each parameter set, using the parameter values specified in the parameter set definition file created in the previous step. The resulting detected treetops are saved as .gpkg files (one per each
+parameter set per each plot) to `/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees`, under a folder for the parameter set group being evaluated, with
 filenames that specify the ITD parameter set ID used and the plot ID; for example
-`params-0001_plot-0005.gpkg`. This step is performed by `20_predict-trees-from-chm.R`. **TO DO:**
-Convert the current workflow code into a function that can be applied across a large set of ITD
-parameters specified in a .csv file or at the top of the script.
+`paramset-000001_plot-0005.gpkg`. This step is performed by `22_predict-trees.R`.
 
 ### Evaluate tree predictions
 
@@ -123,23 +126,20 @@ those defined in
 [`tree-detection-accuracy-assessment.R`](https://github.com/open-forest-observatory/ofo-r/blob/main/R/tree-detection-accuracy-assessment.R),
 which includes at its core a tree matching algorithm, currently identical to the one used in our
 [published MEE paper](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13860).
-Then, the recall, precision, and F score are calculated. **NOTE:** It will be critical that we
+Then, the recall, precision, and F score are calculated. This results in accuarcy metrics for each plot and each ITD parameter set. The results are saved to a .csv file in `/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-evals/`, with a filename that specifies the ITD parameter set group being evaluated. This step is performed by `30_evaluate-predicted-trees.R`.
+
+ **NOTE:** It will be critical that we
 carefully review the size ranges of trees that are considered eligible for matching within this
 function to ensure that each plot survey protocol involved exhaustively measuring trees within the
 matching-eligible size classes. Otherwise, we may (e.g.) end up with an artificially inflated
 false-positive rate (low precision) just because some drone-detected trees that existed in reality
 were not measured because they were too small. This is performed by `30_evaluate-predicted-trees.R`.
-*TODO:* Currently this just runs on a single predicted tree map and does not save the results
-anywhere. We need to run this across all predicted tree maps and save the results to file. Ideally,
-this would be a single file that contains the accuracy results from each tree map, which should be
-pretty feasible to do within this workflow because the compute for each tree map comparison is not
-very intensive.
 
-## Steps remaining to implement
+### Identify the best ITD parameter sets
 
-Aside fromt the TO DO items associated with each existing step above, the remaining computational
-steps include:
+Summarize the resulting accuracy data across each field plot and each ITD parameter set to
+yield inferences into how ITD accuracy changes across stand structure and composition, and how
+this interacts ith the ITD parameters. Some initial steps in this direction are performed by
+`31_visualize-parameterset-performance.R`, which includes some demonstrations of plotting raw results as a series of scatterplots and fitting a multivariate GAM to visualize the partial dependency plots.
 
-- Summarize the resulting accuracy data across each field plot and each ITD parameter set to
-  yield inferences into how ITD accuracy changes across stand structure and composition, and how
-  this interacts ith the ITD parameters.
+We will need to think through carefully how to summarize the accuracy data across plots and ITD parameter sets. For example, there is probably not one best parameter set across all plots, and instead we will need to explore how the ideal parameter set varies across gradients in forest structure (and possibly species composition). It also may be misleading to focus on the single one optimal parameter set for each scenario, beacuse there may be others that perform almost identically, which are also strong performers for other parameter sets or plots.
