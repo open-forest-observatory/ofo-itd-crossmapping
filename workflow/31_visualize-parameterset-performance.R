@@ -83,11 +83,11 @@ p
 ## VIS OPTION 2: Scatter plot by parameter, with plotly for interactive parameter lookup for each point in the plot
 
 plotly = ggplotly(p, tooltip = c("label1", "label2", "label3", "label4", "label5"))
-plotly
+# plotly
 # If the interactive plot does not work well in your IDE, save it as an HTML file, which you can
 # then open in a browser.
 filename = paste0("paramset-eval_paramgroup-", FOC_PARAMGROUP, ".html")
-saveWidget(plotly, file.path(EVAL_FIGURES_DIR, filename), selfcontained = FALSE, libdir = "lib")
+saveWidget(plotly, file.path(EVAL_FIGURES_DIR, filename), selfcontained = TRUE, libdir = "lib")
 
 
 ## VIS OPTION 3: Fit a GAM to the data and visualize the partial effects of the parameters on the f-score
