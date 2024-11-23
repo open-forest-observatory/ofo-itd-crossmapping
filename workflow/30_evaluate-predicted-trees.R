@@ -1,73 +1,135 @@
-# Purpose: For a given set of parameters (specified as constants below), detect trees from a CHM and
-# write the detected treetops to a .gpkg file
+# Purpose: For a set of predicted tree maps (one predicted set per .gpkg file), compare the
+# detections against the observed trees from the corresponding field plot and compute accuracy
+# metrics.
 
 #### Setup
 
 ## Load packages
 library(tidyverse)
-library(lidR)
 library(sf)
+library(furrr)
 
-# Load functions from the 'ofo' R package. The copy in "/ofo-share/utils" is intended to contain the
-# latest version of the 'main' branch. If you want to make edits and test their effect here as you
-# edit ofo-r, you could instead clone the 'ofo-r' repo to your own 'repos' folder and change the
-# path below to match where you cloned it to.
-# devtools::install("/ofo-share/repos-derek/ofo-r", quick = TRUE); library(ofo)
-# devtools::load_all("/ofo-share/repos-derek/ofo-r")
-devtools::load_all("/ofo-share/utils/ofo-r/")
+# Load the 'ofo' R package
+library(ofo)
+
+## Configure packages
+
+# Don't print dplyr messages
+options(dpyr.inform = FALSE)
 
 ## Set constants
 
 # File paths
-CHM_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/chms-cropped/chm-mesh/"
 PREDICTED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees/"
 OBSERVED_ALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/"
 OBSERVED_ALIGNED_PLOTBOUNDS_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/"
+MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-evals/"
 
+# Processing constants for user to define
+
+# Which group of parameter sets to evaluate? Set to the same value as in the previous script (22).
+FOC_PARAMGROUP = "01"
 
 #### Functions
+
+# Compare a predicted tree map (specified by the file name) to the observed trees from the same plot
+eval_preds = function(pred_to_eval, obs_trees, obs_bounds, predicted_trees_dir) {
+
+  # Prepare to get the seconds elapsed during the evaluation
+  start_time = Sys.time()
+
+  # Load the predicted tree map
+  pred_trees = st_read(file.path(predicted_trees_dir, pred_to_eval$pred_tree_file), quiet = TRUE)
+
+  # Add the required x, y, and z columns to the predicted tree map
+  pred_trees = st_transform(pred_trees, st_crs(obs_trees))
+  coords_pred = st_coordinates(pred_trees)
+  pred_trees$x = coords_pred[, "X"]
+  pred_trees$y = coords_pred[, "Y"]
+  pred_trees$z = pred_trees$Z
+
+  # Prepare the predicted tree map for matching
+  pred_trees = prep_pred_map(pred_trees, obs_bounds, edge_buffer = 5)
+
+  # Match the observed trees to the predicted trees
+  obs_trees_matched = match_obs_to_pred_mee(obs_trees,
+                                            pred_trees,
+                                            search_distance_fun_intercept = 1,
+                                            search_distance_fun_slope = 0.1,
+                                            search_height_proportion = 0.5)
+
+  # Compute the match statistics
+  match_stats = compute_match_stats(pred_trees,
+                                    obs_trees_matched,
+                                    min_height = 10)
+
+  # Add the predicted tree file, parameter group, parameter set, and plot ID to the match statistics
+  match_stats = cbind(match_stats, pred_to_eval)
+
+  # Get the seconds elapsed during the evaluation
+  end_time = Sys.time()
+  elapsed_time = end_time - start_time
+  elapsed_secs = as.numeric(elapsed_time, units = "secs")
+
+  # Add the evaluation time to the match statistics
+  match_stats$eval_time = elapsed_secs
+
+  return(match_stats)
+}
 
 
 #### Workflow
 
 # Get list of predicted tree maps to evaluate
-pred_tree_files = list.files(PREDICTED_TREES_DIR, pattern = "gpkg$")
+pred_trees_dir = file.path(PREDICTED_TREES_DIR, paste0("paramgroup-", FOC_PARAMGROUP))
+pred_tree_files = list.files(pred_trees_dir, pattern = "gpkg$")
 
-# TEMPORARY: Select a single predicted tree file to evaluate. TODO: Make this into a function that
-# can be applied in parallel over all predicted tree files.
-pred_tree_file = pred_tree_files[1]
+# Make a data frame with one row per predicted tree map that also has columns for plot ID, parameter
+# group, and parameter set.
+preds_to_eval = data.frame(pred_tree_file = pred_tree_files) |>
+  mutate(paramset_id = str_sub(pred_tree_file, 10, 15),
+         plot_id = str_sub(pred_tree_file, 22, 25)) |>
+  mutate()
 
-# Load the predicted tree map
-pred_trees = st_read(file.path(PREDICTED_TREES_DIR, pred_tree_file))
+# TODO: see which have already been run (based on existence of a results file?) and skip them?
 
-# Load the corresponding observed tree map and plot bounds
-plot_id = str_sub(pred_tree_file, 18, 21)
-obs_trees = st_read(file.path(OBSERVED_ALIGNED_TREES_DIR, paste0(plot_id, ".gpkg")))
-obs_bounds = st_read(file.path(OBSERVED_ALIGNED_PLOTBOUNDS_DIR, paste0(plot_id, ".gpkg")))
+# Prepare to parallelize (happens inside the loop below)
+future::plan(future::multisession)
 
-# Add the required x, y, and z columns to the predicted tree map
-pred_trees = st_transform(pred_trees, st_crs(obs_trees))
-coords_pred = st_coordinates(pred_trees)
-pred_trees$x = coords_pred[, "X"]
-pred_trees$y = coords_pred[, "Y"]
-pred_trees$z = pred_trees$Z
+# Get a list of unique plot IDs
+plot_ids = unique(preds_to_eval$plot_id)
 
-# Visualize the two tree maps
-ofo::vis2(pred = pred_trees,
-          obs = obs_trees,
-          coords_arbitrary = TRUE)
+# Loop through each plot ID for tree map evaluation
+match_stats = data.frame()
+for (i in 1:length(plot_ids)) {
 
-obs_trees = ofo::prep_obs_map(obs_trees, obs_bounds, edge_buffer = 5)
-pred_trees = ofo::prep_pred_map(pred_trees, obs_bounds, edge_buffer = 5)
+  plot_id_foc = plot_ids[i]
 
-obs_trees_matched = ofo::match_obs_to_pred_mee(obs_trees,
-                                          pred_trees,
-                                          search_distance_fun_intercept = 1,
-                                          search_distance_fun_slope = 0.1,
-                                          search_height_proportion = 0.5)
+  cat("Evaluating predicted tree maps across all paramsets for plot ID", plot_id_foc, "(", i, "of", length(plot_ids), ")\n")
 
-match_stats = ofo::compute_match_stats(pred_trees,
-                                  obs_trees_matched,
-                                  min_height = 10)
+  # Load the observed tree map and plot bounds
+  obs_trees = st_read(file.path(OBSERVED_ALIGNED_TREES_DIR, paste0(plot_id_foc, ".gpkg")), quiet = TRUE)
+  obs_bounds = st_read(file.path(OBSERVED_ALIGNED_PLOTBOUNDS_DIR, paste0(plot_id_foc, ".gpkg")), quiet = TRUE)
 
-match_stats
+  preds_to_eval_focplot = preds_to_eval |>
+    filter(plot_id == plot_id_foc)
+
+  # Prepare the observed tree map for matching
+  obs_trees = prep_obs_map(obs_trees, obs_bounds, edge_buffer = 5)
+
+  # Convert preds_to_eval dataframe to a list of dataframes, each list elemenent with one row (for
+  # passing to the parallelized function)
+  preds_to_eval_list = split(preds_to_eval_focplot, seq(nrow(preds_to_eval_focplot)))
+
+  # Run the evaluation function in parallel across all parameter sets for the current focal plot
+  match_stats_focplot_list = future_map(preds_to_eval_list, eval_preds, obs_trees, obs_bounds, pred_trees_dir, .options=furrr_options(chunk_size = 5))
+  match_stats_focplot = bind_rows(match_stats_focplot_list)
+
+  # Append the match statistics for the focal plot to the overall match statistics
+  match_stats = bind_rows(match_stats, match_stats_focplot)
+
+}
+
+# Save the match statistics
+filename = paste0("match-stats_paramgroup-", paste(FOC_PARAMGROUP, collapse = "-"), ".csv")
+write_csv(match_stats, file.path(MATCH_STATS_DIR, filename))
