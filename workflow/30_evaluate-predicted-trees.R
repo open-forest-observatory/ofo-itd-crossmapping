@@ -29,6 +29,7 @@ MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-eva
 
 # Which group of parameter sets to evaluate? Set to the same value as in the previous script (22).
 FOC_PARAMGROUP = "01"
+EVAL_OVERSTORY_ONLY = FALSE
 
 #### Functions
 
@@ -78,6 +79,27 @@ eval_preds = function(pred_to_eval, obs_trees, obs_bounds, predicted_trees_dir) 
 }
 
 
+# Function to see if any trees are taller than the focal tree
+any_taller = function(i, observed_trees) {
+
+  focal_height = observed_trees[i,]$obs_tree_height
+  other_trees = 1:nrow(observed_trees) %>% setdiff(i)
+
+  other_trees_sp = observed_trees[other_trees,]
+  other_trees_sp$dist = st_distance(observed_trees[i,], other_trees_sp) %>% as.vector
+
+  other_trees_sp$heightdiff = other_trees_sp$obs_tree_height - focal_height
+  other_trees_sp$dist_thresh = other_trees_sp$heightdiff * 0.1 + 1
+  other_trees_sp$focal_is_under = ((focal_height < other_trees_sp$obs_tree_height) & (other_trees_sp$dist < other_trees_sp$dist_thresh))
+
+  focal_is_under = any(other_trees_sp$focal_is_under)
+
+  return(focal_is_under)
+
+}
+
+
+
 #### Workflow
 
 # Get list of predicted tree maps to evaluate
@@ -116,6 +138,14 @@ for (i in 1:length(plot_ids)) {
 
   # Prepare the observed tree map for matching
   obs_trees = prep_obs_map(obs_trees, obs_bounds, edge_buffer = 5)
+
+  # Optionally, filter the observed trees to include only overstory trees (presumed visible from overhead)
+  if(EVAL_OVERSTORY_ONLY == TRUE) {
+    obs_trees$under_neighbor = map_lgl(1:nrow(obs_trees), any_taller, observed_trees = obs_trees)
+    obs_trees = obs_trees |>
+      filter(!under_neighbor)
+  }
+
 
   # Convert preds_to_eval dataframe to a list of dataframes, each list elemenent with one row (for
   # passing to the parallelized function)

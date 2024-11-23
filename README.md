@@ -128,6 +128,8 @@ which includes at its core a tree matching algorithm, currently identical to the
 [published MEE paper](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/2041-210X.13860).
 Then, the recall, precision, and F score are calculated. This results in accuarcy metrics for each plot and each ITD parameter set. The results are saved to a .csv file in `/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-evals/`, with a filename that specifies the ITD parameter set group being evaluated. This step is performed by `30_evaluate-predicted-trees.R`.
 
+This script has the option to calculate accuracy against all trees in the plot, or only against trees that are expected to be visible from overhead. The former (compare against all trees) is the default, but can be changed to compare only against overstory trees by setting the constant `EVAL_OVERSTORY_ONLY` at the top of the script to `TRUE`. See the note at the bottom of this README for considerations around this choice.
+
  **NOTE:** It will be critical that we
 carefully review the size ranges of trees that are considered eligible for matching within this
 function to ensure that each plot survey protocol involved exhaustively measuring trees within the
@@ -143,3 +145,11 @@ this interacts ith the ITD parameters. Some initial steps in this direction are 
 `31_visualize-parameterset-performance.R`, which includes some demonstrations of plotting raw results as a series of scatterplots and fitting a multivariate GAM to visualize the partial dependency plots.
 
 We will need to think through carefully how to summarize the accuracy data across plots and ITD parameter sets. For example, there is probably not one best parameter set across all plots, and instead we will need to explore how the ideal parameter set varies across gradients in forest structure (and possibly species composition). It also may be misleading to focus on the single one optimal parameter set for each scenario, beacuse there may be others that perform almost identically, which are also strong performers for other parameter sets or plots.
+
+## Important considerations
+
+There are (at least) two ways to calculate detection accuracy (F-score): against all trees in the plot, or against only the trees that are expected to be visible from overhead. Currently we are evaluating against all trees, but I kind of think we should restrict to overhead-only trees (i.e., optimize for detecting only the trees that we think it is possible to detect); otherwise, we might end up encouraging an algorithm to be overly sensitive and generate false positive detections, as some of them may match to understory trees just by chance and produce a spuriously high F-score. However, I can see an argument for the alternative as well. If we want to exclude understory trees, set the constant `EVAL_OVERSTORY_ONLY` in script `30_evaluate-predicted-trees.R` to `TRUE`. Note that once the optimal parameter set is identified, we should probably re-run the accuracy assessment with `EVAL_OVERSTORY_ONLY = FALSE` to get a sense of the full (ecologically relevant) detection capability of the algorithm and report this number as well.
+
+We should probably run this assessment for both types of CHM (the CHM from the point cloud, and the CHM from the mesh model) because it is unclear which will yield the best performance and we don't want to leave any accuracy on the table. The CHM from the point cloud has more noise, but possibly also more relevant detail.
+
+We should probably evaluate the effect of the CHM smoothing window (moving window mean filter) as well.
