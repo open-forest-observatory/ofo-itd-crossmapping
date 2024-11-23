@@ -26,19 +26,20 @@ CHM_OUTPUTS_CROPPED_DIR <- "/ofo-share/ofo-itd-crossmapping_data/drone/chms-crop
 
 ## Processing constants for user to define
 
-# ID of the previously-generated set of parameter sets to use
-PARAM_GROUP_ID = "04"
+# ID of the previously-generated group of parameter sets to use. Set this to the same value as in
+# script 21.
+PARAM_GROUP_ID = "01"
 
 
 
 ## Functions
 
 # Function to create a variable radius window function for LMF
-make_win_fun <- function(a, b, c, rad_min, rad_max) {
+make_win_fun <- function(a, b, c, diam_min, diam_max) {
   win_fun <- function(x) {
     win <- a + b*x + c*x^2
-    win[win < rad_min] = rad_min
-    win[win > rad_max] = rad_max
+    win[win < diam_min] = diam_min
+    win[win > diam_max] = diam_max
     return(win)
   }
   return(win_fun)
@@ -52,8 +53,8 @@ resample_and_smooth_chm = function(chm, res, smooth_width) {
 }
 
 # Function to predict trees from a prepped (resampled and smoothed) CHM
-predict_trees_from_chm <- function(chm, lmf_a, lmf_b, lmf_c, lmf_rad_min, lmf_rad_max) {
-  win_fun <- make_win_fun(lmf_a, lmf_b, lmf_c, lmf_rad_min, lmf_rad_max)
+predict_trees_from_chm <- function(chm, lmf_a, lmf_b, lmf_c, lmf_diam_min, lmf_diam_max) {
+  win_fun <- make_win_fun(lmf_a, lmf_b, lmf_c, lmf_diam_min, lmf_diam_max)
   ttops <- lidR::locate_trees(chm, algorithm = lmf(ws = win_fun, shape = "circular", hmin = 5), )
   return(ttops)
 }
@@ -67,8 +68,8 @@ predict_trees_oneplot_oneparamset = function(paramset, chm_smooth, out_folder, p
     lmf_a = paramset$lmf_a,
     lmf_b = paramset$lmf_b,
     lmf_c = paramset$lmf_c,
-    lmf_rad_min = paramset$lmf_rad_min,
-    lmf_rad_max = paramset$lmf_rad_max
+    lmf_diam_min = paramset$lmf_diam_min,
+    lmf_diam_max = paramset$lmf_diam_max
   )
 
   # Write predicted trees
@@ -96,7 +97,7 @@ predict_trees_oneplot_multiparamsets = function(plot_id, paramsets, out_folder) 
   # Turn the paramset dataframe rows into a list (each with one row) so it can be used to parallelize
   paramset_list = split(paramsets, seq(nrow(paramsets)))
 
-  # Predict trees for each parameter set in parallel
+  # Predict trees for each parameter set
   walk(paramset_list, predict_trees_oneplot_oneparamset, chm_smooth = chm_smooth, out_folder = out_folder, plot_id = plot_id)
 
 }
@@ -117,5 +118,6 @@ plot_ids <- substr(chm_files, 1, nchar(chm_files) - 4)
 filename = paste0("itd-paramsets_", PARAM_GROUP_ID, ".csv")
 paramsets = read_csv(file.path(ITD_PARAMS_DEF_DIR, filename))
 
+# Predict trees for each plot X parameter set, in parallel across plots (takes about 10 min for 100 paramsets)
 future::plan("multisession")
 future_walk(plot_ids, predict_trees_oneplot_multiparamsets, paramsets = paramsets, out_folder = out_folder)

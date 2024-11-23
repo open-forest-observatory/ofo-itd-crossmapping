@@ -1,4 +1,4 @@
-# Purpose: For a set of detected tree maps (one predicted set per .gpkg file), compare the
+# Purpose: For a set of predicted tree maps (one predicted set per .gpkg file), compare the
 # detections against the observed trees from the corresponding field plot and compute accuracy
 # metrics.
 
@@ -11,15 +11,6 @@ library(furrr)
 
 # Load the 'ofo' R package
 library(ofo)
-
-# If it is not installed, install the copy in "/ofo-share/utils", which is intended to contain the
-# latest version of the 'main' branch: 
-# devtools::install("/ofo-share/utils/ofo-r", quick = TRUE); library(ofo)
-# If you want to make edits and test their effect here as you
-# edit ofo-r, you could instead install the 'ofo-r' repo from your own 'repos' folder and change the
-# path below to match where you cloned it to. Note that we have to install the package, as opposed
-# to loading all its functions using devtools::load_all(), because there is parallelization here and
-# it only works with functions from loaded packages.
 
 ## Configure packages
 
@@ -36,8 +27,8 @@ MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-eva
 
 # Processing constants for user to define
 
-# Which group of parameter sets to evaluate
-FOC_PARAMGROUP = "04"
+# Which group of parameter sets to evaluate? Set to the same value as in the previous script (22).
+FOC_PARAMGROUP = "01"
 
 #### Functions
 
@@ -49,17 +40,17 @@ eval_preds = function(pred_to_eval, obs_trees, obs_bounds, predicted_trees_dir) 
 
   # Load the predicted tree map
   pred_trees = st_read(file.path(predicted_trees_dir, pred_to_eval$pred_tree_file), quiet = TRUE)
-  
+
   # Add the required x, y, and z columns to the predicted tree map
   pred_trees = st_transform(pred_trees, st_crs(obs_trees))
   coords_pred = st_coordinates(pred_trees)
   pred_trees$x = coords_pred[, "X"]
   pred_trees$y = coords_pred[, "Y"]
   pred_trees$z = pred_trees$Z
-  
+
   # Prepare the predicted tree map for matching
   pred_trees = prep_pred_map(pred_trees, obs_bounds, edge_buffer = 5)
-  
+
   # Match the observed trees to the predicted trees
   obs_trees_matched = match_obs_to_pred_mee(obs_trees,
                                             pred_trees,
@@ -102,14 +93,11 @@ preds_to_eval = data.frame(pred_tree_file = pred_tree_files) |>
 
 # TODO: see which have already been run (based on existence of a results file?) and skip them?
 
-
+# Prepare to parallelize (happens inside the loop below)
 future::plan(future::multisession)
 
 # Get a list of unique plot IDs
 plot_ids = unique(preds_to_eval$plot_id)
-
-# TEMPORARY: only run 3 plots
-plot_ids = plot_ids[1:3]
 
 # Loop through each plot ID for tree map evaluation
 match_stats = data.frame()
@@ -128,9 +116,6 @@ for (i in 1:length(plot_ids)) {
 
   # Prepare the observed tree map for matching
   obs_trees = prep_obs_map(obs_trees, obs_bounds, edge_buffer = 5)
-
-  # Loop through each parameter set (i.e. predicted tree map) for the focal plot ID and compute tree
-  # detection accuracy
 
   # Convert preds_to_eval dataframe to a list of dataframes, each list elemenent with one row (for
   # passing to the parallelized function)

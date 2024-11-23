@@ -4,6 +4,7 @@
 
 # Load necessary packages
 library(tidyverse)
+library(yaml)
 
 ## Data paths
 
@@ -12,31 +13,38 @@ ITD_PARAMS_DEF_DIR = "/ofo-share/ofo-itd-crossmapping_data/itd-paramsets/"
 
 ## Processing constants for user to define
 
-# Setting an ID for the set of paramter sets allows us to generate multiple sets of parameters and track them separately, so we can revise
-PARAM_GROUP_ID = "04"
+# Setting an ID for the set of paramter sets allows us to generate multiple sets of parameters and
+# track them separately, so we can revise the ranges iteratively
+PARAM_GROUP_ID = "01"
 
 # How many parameter sets to sample randomly from the grid?
-N_PARAMSETS = 500
+N_PARAMSETS = 100
 
 # Define parameter ranges
-PARAM_RANGES <- list(
-  lmf_a = seq(-10, 10, length.out = 10),
-  lmf_b = seq(-2, 2, length.out = 10),
-  lmf_c = seq(-0.5, 0.5, length.out = 10),
-  lmf_rad_min = seq(0.1, 5, length.out = 10),
-  lmf_rad_max = seq(2, 20, length.out = 10)
-)
-
+PARAM_RANGES = data.frame(
+  lmf_a = c(min = -2, max = 2),
+  lmf_b = c(min = -0.5, max = 0.5),
+  lmf_c = c(min = -0.1, max = 0.1),
+  lmf_diam_min = c(min = 0.1, max = 5),
+  lmf_diam_max = c(min = 2, max = 20)
+) |> t()
 
 
 #### Workflow
 
-# Generate full parameter grid
-param_grid <- expand.grid(PARAM_RANGES)
+# Write the parameter ranges to a file for reference
+param_ranges_filename = paste0("itd-param-ranges_", PARAM_GROUP_ID, ".csv")
+write.csv(PARAM_RANGES, file.path(ITD_PARAMS_DEF_DIR, param_ranges_filename), row.names = TRUE)
 
-# Sample a subset of the parameter sets
-set.seed(123)
-sampled_params <- param_grid |> sample_n(N_PARAMSETS)
+# Create a data frame with the randomly sampled parameter sets, with one columne for each parameter, and
+# one row for each parameter set
+sampled_params = list()
+for(i in 1:nrow(PARAM_RANGES)) {
+  param_name = rownames(PARAM_RANGES)[i]
+  param_range = PARAM_RANGES[i, ]
+  sampled_params[[param_name]] = runif(N_PARAMSETS, min = param_range["min"], max = param_range["max"])
+}
+sampled_params = bind_rows(sampled_params)
 
 # Add an ID for each parameter set (left-padded with zeros to a width of 6)
 ids = sprintf("%06d", 1:N_PARAMSETS)
