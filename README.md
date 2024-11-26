@@ -91,6 +91,10 @@ this shift to the tree locations and the field plot boundary and save the shifte
 files in the folder `/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned`. This is performed
 by `08_align-field-and-drone/08-02_alignment.R`.
 
+Note that all of the selected field plots aligned properly to the drone data *except* plots 0015,
+0046, 0105, and 0110, so these plots should be excluded from evaluation until we improve the
+alignment algorithm and successfully align them. 
+
 ### Crop the CHM to the field plot bounds (plus buffer)
 
 To minimize the compute required for the subsequent steps of tree detection (many different times
