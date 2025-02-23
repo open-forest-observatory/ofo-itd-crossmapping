@@ -28,10 +28,10 @@ repo's main branch, you can point this to the path to your clone of the repo on 
 If you want to do parallelization using functions of the `ofo-r` package, it is insufficient to source
 the functions using `devtools::load_all()`, because they don't load properly for parallelization.
 You need to actually install the development version of the package with
-`devtools::install_package({path/to/ofo-r/repo})` (possibly preceded by
+`devtools::install({path/to/ofo-r/repo})` (possibly preceded by
 `devtools::document({path/to/ofo-r/repo})` if documentation is not up to date), then load it with
 `library(ofo)`. For example, if you want to install the version of the package that is in the
-`/ofo-share/utils/ofo-r` folder, you would run `devtools::install_package("/ofo-share/utils/ofo-r")`.
+`/ofo-share/utils/ofo-r` folder, you would run `devtools::install("/ofo-share/utils/ofo-r")`.
 
 ## Alternative approach for developing reusable functions
 
