@@ -28,7 +28,7 @@ CHM_OUTPUTS_CROPPED_DIR <- "/ofo-share/ofo-itd-crossmapping_data/drone/chms-crop
 
 # ID of the previously-generated group of parameter sets to use. Set this to the same value as in
 # script 21.
-PARAM_GROUP_ID = "01"
+PARAM_GROUP_ID = "96"
 
 
 

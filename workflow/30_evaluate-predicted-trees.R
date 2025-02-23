@@ -28,7 +28,7 @@ MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-eva
 # Processing constants for user to define
 
 # Which group of parameter sets to evaluate? Set to the same value as in the previous script (22).
-FOC_PARAMGROUP = "01"
+FOC_PARAMGROUP = "96"
 EVAL_OVERSTORY_ONLY = FALSE
 
 #### Functions
@@ -52,17 +52,24 @@ eval_preds = function(pred_to_eval, obs_trees, obs_bounds, predicted_trees_dir) 
   # Prepare the predicted tree map for matching
   pred_trees = prep_pred_map(pred_trees, obs_bounds, edge_buffer = 5)
 
-  # Match the observed trees to the predicted trees
-  obs_trees_matched = match_obs_to_pred_mee(obs_trees,
-                                            pred_trees,
-                                            search_distance_fun_intercept = 1,
-                                            search_distance_fun_slope = 0.1,
-                                            search_height_proportion = 0.5)
+  #! If there are no trees in the predicted tree map, return a recall and precision of 0
 
-  # Compute the match statistics
-  match_stats = compute_match_stats(pred_trees,
-                                    obs_trees_matched,
-                                    min_height = 10)
+  if(nrow(pred_trees) > 0) {
+    # Match the observed trees to the predicted trees
+    obs_trees_matched = match_obs_to_pred_mee(obs_trees,
+                                              pred_trees,
+                                              search_distance_fun_intercept = 1,
+                                              search_distance_fun_slope = 0.1,
+                                              search_height_proportion = 0.5)
+
+    # Compute the match statistics
+    match_stats = compute_match_stats(pred_trees,
+                                      obs_trees_matched,
+                                      min_height = 10)
+  } else {
+    # If there are no trees in the predicted tree map, return a recall and precision of 0
+    match_stats = data.frame(recall = 0, precision = 0, f_score = 0)
+  }
 
   # Add the predicted tree file, parameter group, parameter set, and plot ID to the match statistics
   match_stats = cbind(match_stats, pred_to_eval)
