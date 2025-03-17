@@ -137,6 +137,6 @@ ggplot(params_w_preds, aes(x = lmf_b, y = lmf_a, fill = pred_f_score)) +
 
 # Find the optimum
 opt = params_w_preds |>
-  filter(plot_class == "highdens") |>
-  filter(pred == max(pred))
+  filter(plot_class == "allplots") |>
+  filter(pred_f_score == max(pred_f_score))
 opt
