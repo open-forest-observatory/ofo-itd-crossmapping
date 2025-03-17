@@ -113,7 +113,7 @@ predict_gam = function(m, d, plot_class) {
   param_grid = expand.grid(lmf_a = seq(lmf_a_min, lmf_a_max, length.out = 100),
                           lmf_b = seq(lmf_b_min, lmf_b_max, length.out = 100))
   preds = predict(m, newdata = param_grid, type = "response")
-  param_grid$pred = preds
+  param_grid$pred_f_score = preds
   param_grid$plot_class = plot_class
 
   return(param_grid)
@@ -128,7 +128,7 @@ params_w_preds = bind_rows(pred_overall, pred_lowdens, pred_highdens)
 
 
 ## Plot this as a heatmap
-ggplot(params_w_preds, aes(x = lmf_b, y = lmf_a, fill = pred)) +
+ggplot(params_w_preds, aes(x = lmf_b, y = lmf_a, fill = pred_f_score)) +
   geom_tile() +
   scale_fill_viridis_c() +
   theme_bw() +
