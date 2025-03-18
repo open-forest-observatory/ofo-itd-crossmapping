@@ -15,18 +15,18 @@ ITD_PARAMS_DEF_DIR = "/ofo-share/ofo-itd-crossmapping_data/itd-paramsets/"
 
 # Setting an ID for the set of paramter sets allows us to generate multiple sets of parameters and
 # track them separately, so we can revise the ranges iteratively
-PARAM_GROUP_ID = "96"
+PARAM_GROUP_ID = "41"
 
 # How many parameter sets to sample randomly from the grid?
-N_PARAMSETS = 50
+N_PARAMSETS = 1000
 
 # Define parameter ranges
 PARAM_RANGES = data.frame(
-  lmf_a = c(min = 100, max = 100),
-  lmf_b = c(min = 0, max = 0),
+  lmf_a = c(min = -2, max = 6),
+  lmf_b = c(min = -0.05, max = 0.15),
   lmf_c = c(min = 0, max = 0),
-  lmf_diam_min = c(min = 0.1, max = 10),
-  lmf_diam_max = c(min = 1, max = 60)
+  lmf_diam_min = c(min = 0.1, max = 0.1),
+  lmf_diam_max = c(min = 20, max = 20)
 ) |> t()
 
 

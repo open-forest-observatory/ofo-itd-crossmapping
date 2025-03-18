@@ -28,7 +28,7 @@ CHM_OUTPUTS_CROPPED_DIR <- "/ofo-share/ofo-itd-crossmapping_data/drone/chms-crop
 
 # ID of the previously-generated group of parameter sets to use. Set this to the same value as in
 # script 21.
-PARAM_GROUP_ID = "96"
+PARAM_GROUP_ID = "41"
 
 
 
@@ -120,4 +120,4 @@ paramsets = read_csv(file.path(ITD_PARAMS_DEF_DIR, filename))
 
 # Predict trees for each plot X parameter set, in parallel across plots (takes about 10 min for 100 paramsets)
 future::plan("multisession")
-future_walk(plot_ids, predict_trees_oneplot_multiparamsets, paramsets = paramsets, out_folder = out_folder)
+future_walk(plot_ids, predict_trees_oneplot_multiparamsets, paramsets = paramsets, out_folder = out_folder, .progress = TRUE)
