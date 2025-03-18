@@ -24,7 +24,7 @@ FIELD_REF = "/ofo-share/ofo-itd-crossmapping_data/site-selection/processed/selec
 PLOTS_EXCLUDE = c("0015", "0046", "0105", "0110", "0101") # Temporarily excluding plot 0101 because it was manually added to the list of candidate plots and doesn't have a tree density value, can add back as soon as we address that 
 
 # Which group of parameter sets to evaluate. Set to the same value as in the previous script (30).
-FOC_PARAMGROUP = "600"
+FOC_PARAMGROUP = "41"
 
 
 #### Workflow
@@ -35,15 +35,15 @@ d = read_csv(file.path(MATCH_STATS_DIR, filename))
 
 ## Filter to the focal plots
 d = d |>
-  filter(!plot_ID %in% PLOTS_EXCLUDE)
+  filter(!plot_id %in% PLOTS_EXCLUDE)
 
 ## Load the parameter set definitions
 filename = paste0("itd-paramsets_", paste(FOC_PARAMGROUP, collapse = "-"), ".csv")
 param_defs = read_csv(file.path(ITD_PARAMS_DEF_DIR, filename))
 
-## Bind the parameter definitions to the match stats
 d = d |>
-  left_join(param_defs, by = join_by("param_ID" == "paramset_id"))
+  left_join(param_defs, by = join_by("paramset_id" == "paramset_id"))
+
 
 ## Pull in plot data to classify plots as "high" or "low" tree density
 
@@ -53,46 +53,47 @@ dens = field_ref |>
   select(plot_id = field_plot_id, obs_tree_density = tph) |>
   mutate(plot_id = str_pad(plot_id, width = 4, side = "left", pad = "0"))
 
-d2 = left_join(d, dens, by = join_by("plot_ID" == "plot_id"))
+d2 = left_join(d, dens, by = join_by("plot_id" == "plot_id"))
+d2 = left_join(d, dens, by = join_by("plot_id" == "plot_id"))
 
 mid_dens = median(d2$obs_tree_density)
 
 # Summarize the f-score by parameter set, across all plots and low- and high-density plots separately
 d_summ_overall = d2 |>
-  group_by(param_ID, lmf_a, lmf_b, lmf_c, lmf_diam_min, lmf_diam_max) |>
+  group_by(paramset_id, lmf_a, lmf_b, lmf_c, lmf_diam_min, lmf_diam_max) |>
   summarize(allplots = mean(f_score),
             n_plots = n()) |>
   ungroup()
 
 d_summ_lowdens = d2 |>
   filter(obs_tree_density < mid_dens) |>
-  group_by(param_ID) |>
+  group_by(paramset_id) |>
   summarize(lowdens = mean(f_score),
             n_plots_lowdens = n()) |>
   ungroup()
 
 d_summ_highdens = d2 |>
   filter(obs_tree_density >= mid_dens) |>
-  group_by(param_ID) |>
+  group_by(paramset_id) |>
   summarize(highdens = mean(f_score),
             n_plots_highdens = n()) |>
   ungroup()
 
-d_summ_lowhigh = left_join(d_fig_lowdens, d_fig_highdens, by = join_by("param_ID" == "param_ID"))
-d_summ = left_join(d_fig_overall, d_fig_lowhigh, by = join_by("param_ID" == "param_ID"))
+d_summ_lowhigh = left_join(d_summ_lowdens, d_summ_highdens, by = join_by("paramset_id" == "paramset_id"))
+d_summ = left_join(d_summ_overall, d_summ_lowhigh, by = join_by("paramset_id" == "paramset_id"))
 
-d_summ_long = d_fig |>
+d_summ_long = d_summ |>
   pivot_longer(cols = c("allplots", "lowdens", "highdens"),
                names_to = "plot_class",
                values_to = "f_score")
 
 # Only look at F-scores > 0.5
 d_summ_long_fig = d_summ_long |>
-  mutate(f_score = ifelse(f_score < 0.60, NA, f_score))
+  mutate(f_score = ifelse(f_score < 0, NA, f_score))
 
 ggplot(d_summ_long_fig, aes(x = lmf_b, y = lmf_a, color = f_score)) +
   geom_point() +
-  facet_wrap(~f_score_type) +
+  facet_wrap(~plot_class) +
   scale_color_viridis_c() +
   theme_bw()
 
