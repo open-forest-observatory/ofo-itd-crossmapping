@@ -28,7 +28,7 @@ MATCH_STATS_DIR = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-tree-eva
 # Processing constants for user to define
 
 # Which group of parameter sets to evaluate? Set to the same value as in the previous script (22).
-FOC_PARAMGROUP = "96"
+FOC_PARAMGROUP = "41"
 EVAL_OVERSTORY_ONLY = FALSE
 
 #### Functions
@@ -117,8 +117,7 @@ pred_tree_files = list.files(pred_trees_dir, pattern = "gpkg$")
 # group, and parameter set.
 preds_to_eval = data.frame(pred_tree_file = pred_tree_files) |>
   mutate(paramset_id = str_sub(pred_tree_file, 10, 15),
-         plot_id = str_sub(pred_tree_file, 22, 25)) |>
-  mutate()
+         plot_id = str_sub(pred_tree_file, 22, 25))
 
 # TODO: see which have already been run (based on existence of a results file?) and skip them?
 
