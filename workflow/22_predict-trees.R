@@ -61,7 +61,7 @@ predict_trees_from_chm <- function(chm, lmf_a, lmf_b, lmf_c, lmf_diam_min, lmf_d
 
 # Function to predict trees for a single plot, using a single parameter set and based on a CHM that
 # is passed in to it
-predict_trees_oneplot_oneparamset = function(paramset, chm_smooth, out_folder, plot_id) {
+predict_trees_oneplot_oneparamset = function(paramset, chm_smooth, chm_orig, out_folder, plot_id) {
   # Predict trees
   ttops <- predict_trees_from_chm(
     chm = chm_smooth,
@@ -71,6 +71,13 @@ predict_trees_oneplot_oneparamset = function(paramset, chm_smooth, out_folder, p
     lmf_diam_min = paramset$lmf_diam_min,
     lmf_diam_max = paramset$lmf_diam_max
   )
+
+  # Get the height from the original (not smoothed) CHM
+  ht_chm_orig = terra::extract(chm_orig, ttops)[, 2]
+
+  # Overwrite the ITD-derived height (which is from the smoothed CHM) with the height extracted from
+  # the original (unsmoothed) CHM
+  ttops$Z = ht_chm_orig
 
   # Write predicted trees
   ttops_filename = paste0("paramset-", paramset$paramset_id, "_plot-", plot_id, ".gpkg")
@@ -91,6 +98,7 @@ predict_trees_oneplot_multiparamsets = function(plot_id, paramsets, out_folder) 
   chm <- terra::rast(chm_file)
 
   chm_smooth = resample_and_smooth_chm(chm, res = 0.25, smooth_width = 3)
+  chm_orig_resampled =  terra::project(chm, terra::crs(chm), res = 0.25, method = "bilinear")
 
   # TODO: If we end up tuning the CHM res and smoothing params, then here, we could pre-prep the various resampled/smoothed versions of the CHM, so they don't have to be recomputed for every ITD set. But the compute for resampling seems like very low overhead.
 
@@ -98,7 +106,7 @@ predict_trees_oneplot_multiparamsets = function(plot_id, paramsets, out_folder) 
   paramset_list = split(paramsets, seq(nrow(paramsets)))
 
   # Predict trees for each parameter set
-  walk(paramset_list, predict_trees_oneplot_oneparamset, chm_smooth = chm_smooth, out_folder = out_folder, plot_id = plot_id)
+  walk(paramset_list, predict_trees_oneplot_oneparamset, chm_smooth = chm_smooth, chm_orig = chm_orig_resampled, out_folder = out_folder, plot_id = plot_id)
 
 }
 
