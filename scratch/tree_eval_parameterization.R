@@ -1,6 +1,7 @@
 library(sf)
 library(ofo)
 library(tidyverse)
+library(ggplot2)
 
 PLOT_IDS = c(
   "0005",
@@ -142,13 +143,30 @@ compute_plot_metrics = function(
 }
 
 edge_buffers = 1:10 / 2
-edge_buffer_experiments = sapply(
+edge_buffer_experiments = lapply(
   PLOT_IDS,
   compute_plot_metrics,
   attribute_values = edge_buffers,
   attribute_to_vary = "edge_buffer"
 )
-print(edge_buffer_experiments)
-# Create a plot window
-plot(edge_buffers, edge_buffer_experiments$f_score)
-input("Please type enter...")
+edge_buffer_experiments_concatenated = bind_rows(edge_buffer_experiments)
+edge_buffer_experiments_concatenated["edge_buffer"] = rep(edge_buffers, length(PLOT_IDS))
+mean_across_plots = edge_buffer_experiments_concatenated %>%
+  group_by(edge_buffer) %>%
+  summarise(
+    mean_recall = mean(recall),
+    .groups = "drop"
+  ) %>%
+  as.data.frame()
+
+x11()
+ggplot(data = edge_buffer_experiments_concatenated, mapping = aes(x = edge_buffer, y = recall)) +
+  geom_point() +
+  geom_point(
+    data = mean_across_plots,
+    mapping = aes(x = edge_buffer, y = mean_recall), colour = "red", size = 3
+  )
+# plot(edge_buffer_experiments_concatenated$edge_buffer, edge_buffer_experiments_concatenated$recall)
+# plot(mean_across_plots$edge_buffer, mean_across_plots$mean_recall, add = TRUE)
+# https://stackoverflow.com/questions/24220676/r-script-using-x11-window-only-opens-for-a-second
+while (names(dev.cur()) != "null device") Sys.sleep(1)
