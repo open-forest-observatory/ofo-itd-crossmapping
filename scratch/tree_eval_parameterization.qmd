@@ -5,6 +5,11 @@ date: "4/14/2025"
 format:
   html:
     code-fold: true
+
+execute:
+  warning: false
+  message: false
+  echo: false
 ---
 
 ## Air Quality
@@ -13,24 +18,44 @@ format:
 library(sf)
 library(ofo)
 library(tidyverse)
+library(ggplot2)
 ```
 
 ```{r}
-PREDS_FILE = "/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees/paramgroup-41/paramset-000068_plot-0016.gpkg"
-REFERENCE_FILE = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/0016.gpkg"
-PLOT_BOUNDS = "/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/0016.gpkg"
+PLOT_IDS = c(
+  "0005",
+  "0006",
+  "0007",
+  "0014",
+  "0016",
+  "0018",
+  "0019",
+  "0026",
+  "0032",
+  "0035",
+  "0044",
+  "0088",
+  "0090",
+  "0091",
+  "0095",
+  "0098",
+  "0100",
+  "0102",
+  "0104"
+)
+
 ```
 
 ```{r}
 # Compare a predicted tree map (specified by the file name) to the observed trees from the same plot
 eval_preds = function(
-  pred_trees,
-  obs_trees,
-  obs_bounds,
-  edge_buffer,
-  min_height_for_eval,
-  min_height_pred,
-  min_height_obs) {
+    pred_trees,
+    obs_trees,
+    obs_bounds,
+    edge_buffer,
+    min_height_for_eval,
+    min_height_pred,
+    min_height_obs) {
   # Prepare to get the seconds elapsed during the evaluation
   start_time = Sys.time()
 
@@ -52,11 +77,10 @@ eval_preds = function(
       search_distance_fun_slope = 0.1,
       search_height_proportion = 0.5
     )
-    if (TRUE){
-      tree_matched_obs_filtered = obs_trees_matched[!is.na(obs_trees_matched$matched_pred_tree_id),]
+    if (TRUE) {
+      tree_matched_obs_filtered = obs_trees_matched[!is.na(obs_trees_matched$matched_pred_tree_id), ]
       matches = match(tree_matched_obs_filtered$matched_pred_tree_id, pred_trees$pred_tree_id)
       tree_preds_ordered = pred_trees[matches, ]
-      plot(tree_matched_obs_filtered$obs_tree_height, tree_preds_ordered$pred_tree_height)
     }
 
     # Compute the match statistics
@@ -80,104 +104,113 @@ eval_preds = function(
 
   return(match_stats)
 }
-```
-Read in the reference and predicted tree datasets
-```{r}
-obs_trees = st_read(REFERENCE_FILE)
-pred_trees = st_read(PREDS_FILE)
-obs_bounds = st_read(PLOT_BOUNDS)
-```
-```{r}
-pred_trees = st_transform(pred_trees, st_crs(obs_trees))
-coords_pred = st_coordinates(pred_trees)
-pred_trees$x = coords_pred[, "X"]
-pred_trees$y = coords_pred[, "Y"]
-pred_trees$z = pred_trees$Z
-```
 
-```{r}
-EDGE_BUFFERS = 1:10 / 2
+compute_plot_metrics = function(
+    plot_ID,
+    attribute_values,
+    attribute_to_vary,
+    default_edge_buffer = 5,
+    default_min_height_for_eval = 10,
+    default_min_height_pred = 0,
+    default_min_height_obs = 0) {
+  # Define the filenames
+  preds_file = sprintf("/ofo-share/ofo-itd-crossmapping_data/drone/predicted-trees/paramgroup-41/paramset-000068_plot-%s.gpkg", plot_ID)
+  reference_file = sprintf("/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/%s.gpkg", plot_ID)
+  plot_bounds = sprintf("/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/%s.gpkg", plot_ID)
 
-all_match_stats = data.frame()
-for (edge_buffer in EDGE_BUFFERS) {
-  match_stats = eval_preds(
-    pred_trees,
-    obs_trees,
-    obs_bounds,
-    edge_buffer = edge_buffer,
-    min_height_for_eval = 10,
-    min_height_pred = 0,
-    min_height_obs = 0
+  obs_trees = st_read(reference_file)
+  pred_trees = st_read(preds_file)
+  obs_bounds = st_read(plot_bounds)
+
+  pred_trees = st_transform(pred_trees, st_crs(obs_trees))
+  coords_pred = st_coordinates(pred_trees)
+  pred_trees$x = coords_pred[, "X"]
+  pred_trees$y = coords_pred[, "Y"]
+  pred_trees$z = pred_trees$Z
+
+  n_experiments = length(attribute_values)
+
+  evaluation_parameters = data.frame(
+    edge_buffer = rep(default_edge_buffer, n_experiments),
+    min_height_for_eval = rep(default_min_height_for_eval, n_experiments),
+    min_height_pred = rep(default_min_height_pred, n_experiments),
+    min_height_obs = rep(default_min_height_obs, n_experiments)
   )
-  all_match_stats = bind_rows(all_match_stats, match_stats)
+  evaluation_parameters[attribute_to_vary] = attribute_values
+
+  all_results = NULL
+
+  for (i in 1:nrow(evaluation_parameters)) {
+    row <- evaluation_parameters[i, ]
+    # do stuff with row
+    res = eval_preds(
+      pred_trees,
+      obs_trees,
+      obs_bounds,
+      edge_buffer = row$edge_buffer,
+      min_height_for_eval = row$min_height_for_eval,
+      min_height_pred = row$min_height_pred,
+      min_height_obs = row$min_height_obs
+    )
+
+    if (is.null(all_results)) {
+      all_results = res
+    } else {
+      all_results = rbind(all_results, res)
+    }
+  }
+
+  return(all_results)
 }
-plot(EDGE_BUFFERS, all_match_stats$precision)
-plot(EDGE_BUFFERS, all_match_stats$recall)
-plot(EDGE_BUFFERS, all_match_stats$f_score)
-```
 
-```{r}
-MIN_EVAL_HEIGHTS = 10:20 / 2
-
-all_match_stats = data.frame()
-for (min_eval_height in MIN_EVAL_HEIGHTS) {
-  match_stats = eval_preds(
-    pred_trees,
-    obs_trees,
-    obs_bounds,
-    edge_buffer = 5,
-    min_height_for_eval = min_eval_height,
-    min_height_pred = 0,
-    min_height_obs = 0
+across_plots_experiments = function(attribute_to_vary, attribute_values) {
+  per_plot_results = lapply(
+    PLOT_IDS,
+    compute_plot_metrics,
+    attribute_values = attribute_values,
+    attribute_to_vary = attribute_to_vary
   )
-  all_match_stats = bind_rows(all_match_stats, match_stats)
+  plots_concatenated = bind_rows(per_plot_results)
+
+  plots_concatenated[attribute_to_vary] = rep(attribute_values, length(PLOT_IDS))
+
+  mean_across_plots = plots_concatenated %>%
+    group_by(!!sym(attribute_to_vary)) %>%
+    summarise(
+      mean_recall = mean(recall),
+      mean_precision = mean(precision),
+      .groups = "drop"
+    ) %>%
+    as.data.frame()
+  p = ggplot(data = plots_concatenated, mapping = aes(x = !!sym(attribute_to_vary), y = recall)) +
+    geom_point(show.legend = TRUE) +
+    geom_point(
+      data = mean_across_plots,
+      mapping = aes(x = !!sym(attribute_to_vary), y = mean_recall), colour = "red", size = 3, show.legend = TRUE
+    )
+  plot(p)
+  p = ggplot(data = plots_concatenated, mapping = aes(x = !!sym(attribute_to_vary), y = precision)) +
+    geom_point() +
+    geom_point(
+      data = mean_across_plots,
+      mapping = aes(x = !!sym(attribute_to_vary), y = mean_precision), colour = "red", size = 3
+    )
+  plot(p)
 }
-plot(MIN_EVAL_HEIGHTS, all_match_stats$precision)
-plot(MIN_EVAL_HEIGHTS, all_match_stats$recall)
-plot(MIN_EVAL_HEIGHTS, all_match_stats$f_score)
 ```
 
 ```{r}
-MIN_PRED_HEIGHTS = 10:20 / 2
-
-all_match_stats = data.frame()
-for (min_pred_height in MIN_PRED_HEIGHTS) {
-  match_stats = eval_preds(
-    pred_trees,
-    obs_trees,
-    obs_bounds,
-    edge_buffer = 0,
-    min_height_for_eval = 0,
-    min_height_pred = min_pred_height,
-    min_height_obs = 0
-  )
-  all_match_stats = bind_rows(all_match_stats, match_stats)
-}
-plot(MIN_PRED_HEIGHTS, all_match_stats$precision)
-plot(MIN_PRED_HEIGHTS, all_match_stats$recall)
-plot(MIN_PRED_HEIGHTS, all_match_stats$f_score)
+across_plots_experiments("edge_buffer", 1:10 / 2)
 ```
 
 ```{r}
-MIN_OBS_HEIGHTS = 10:20 / 2
-
-all_match_stats = data.frame()
-for (min_obs_height in MIN_OBS_HEIGHTS) {
-  match_stats = eval_preds(
-    pred_trees,
-    obs_trees,
-    obs_bounds,
-    edge_buffer = 5,
-    min_height_for_eval = 10,
-    min_height_pred = 0,
-    min_height_obs = min_obs_height
-  )
-  all_match_stats = bind_rows(all_match_stats, match_stats)
-}
-plot(MIN_OBS_HEIGHTS, all_match_stats$precision)
-plot(MIN_OBS_HEIGHTS, all_match_stats$recall)
-plot(MIN_OBS_HEIGHTS, all_match_stats$f_score)
+across_plots_experiments("min_height_for_eval", 10:20 / 2)
 ```
+
 ```{r}
-plot(pred_trees)
+across_plots_experiments("min_height_pred", 1:10)
+```
+
+```{r}
+across_plots_experiments("min_height_obs", 1:10)
 ```
