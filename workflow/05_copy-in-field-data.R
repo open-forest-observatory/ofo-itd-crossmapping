@@ -25,6 +25,13 @@ assoc = read_csv(file.path(ASSOC_TABLE_DIR, "field-plot_drone-mission_crosswalk.
 tabular_data = read_and_standardize_tabular_field_ref_data(GOOGLE_SHEET_ID)
 trees = prep_trees(tabular_data$trees, tabular_data$species_codes)
 
+# Fix a column being read as a list column, seems to be a bug in the googlesheets4 package
+# Set null values to NA
+trees$contributor_tree_id = trees$contributor_tree_id |>
+  map_chr(~ ifelse(is.null(.x), NA_character_, .x))
+# Unlist list column
+trees$contributor_tree_id = unlist(trees$contributor_tree_id)
+
 # Filter to the trees that are in the field plots we need
 trees = trees |>
   filter(plot_id %in% assoc$field_plot_id)
