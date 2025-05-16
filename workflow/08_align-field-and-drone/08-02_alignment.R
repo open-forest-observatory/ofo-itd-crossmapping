@@ -1,5 +1,4 @@
-# Purpose: Perform preliminary tree detection on CHM to create a preliminary drone-detected tree
-# dataset for determining how to align the field data to the drone data
+# Purpose: Use the preliminary tree detection from the drone imagery as a reference to identify the optimal x-y shift for the ground reference data in order to spatially co-register it to the drone data, and perform the shift.
 
 library(sf)
 library(tidyverse)
