@@ -83,8 +83,20 @@ eval_preds = function(
       tree_preds_ordered = pred_trees[matches, ]
     }
 
+    if (TRUE) {
+      obs_bounds_center = st_buffer(obs_bounds, -edge_buffer - 10)
+      obs_bounds_center = st_transform(obs_bounds_center, st_crs(pred_trees))
+      pred_trees_in_center = st_intersects(pred_trees, obs_bounds_center, sparse = FALSE)
+      obs_trees_matched_in_center = st_intersects(obs_trees_matched, obs_bounds_center, sparse = FALSE)
+
+      pred_trees$pred_tree_core_area[pred_trees_in_center] = FALSE
+      obs_trees_matched$obs_tree_core_area[obs_trees_matched_in_center] = FALSE
+    }
+
+    # Determine which trees are within the outer ring
+    # * This can be done by updating pred_tree_core_area such that it only includes ones in the edge
     # Compute the match statistics
-    match_stats = compute_match_stats(
+    match_stats = ofo::compute_match_stats(
       pred_trees,
       obs_trees_matched,
       min_height = min_height_for_eval
@@ -118,9 +130,9 @@ compute_plot_metrics = function(
   reference_file = sprintf("/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/trees/%s.gpkg", plot_ID)
   plot_bounds = sprintf("/ofo-share/ofo-itd-crossmapping_data/field-reference/aligned/plot-bounds/%s.gpkg", plot_ID)
 
-  obs_trees = st_read(reference_file)
-  pred_trees = st_read(preds_file)
-  obs_bounds = st_read(plot_bounds)
+  obs_trees = st_read(reference_file, quiet = TRUE)
+  pred_trees = st_read(preds_file, quiet = TRUE)
+  obs_bounds = st_read(plot_bounds, quiet = TRUE)
 
   pred_trees = st_transform(pred_trees, st_crs(obs_trees))
   coords_pred = st_coordinates(pred_trees)
