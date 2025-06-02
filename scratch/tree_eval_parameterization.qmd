@@ -12,7 +12,7 @@ execute:
   echo: false
 ---
 
-## Air Quality
+## Tree matching eval
 
 ```{r}
 library(sf)
@@ -84,7 +84,7 @@ eval_preds = function(
     }
 
     if (TRUE) {
-      obs_bounds_center = st_buffer(obs_bounds, -edge_buffer - 10)
+      obs_bounds_center = st_buffer(obs_bounds, -6)
       obs_bounds_center = st_transform(obs_bounds_center, st_crs(pred_trees))
       pred_trees_in_center = st_intersects(pred_trees, obs_bounds_center, sparse = FALSE)
       obs_trees_matched_in_center = st_intersects(obs_trees_matched, obs_bounds_center, sparse = FALSE)
@@ -189,8 +189,8 @@ across_plots_experiments = function(attribute_to_vary, attribute_values) {
   mean_across_plots = plots_concatenated %>%
     group_by(!!sym(attribute_to_vary)) %>%
     summarise(
-      mean_recall = mean(recall),
-      mean_precision = mean(precision),
+      mean_recall = mean(recall, na.rm = TRUE),
+      mean_precision = mean(precision, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     as.data.frame()
@@ -216,13 +216,13 @@ across_plots_experiments("edge_buffer", 0:10 / 2)
 ```
 
 ```{r}
-across_plots_experiments("min_height_for_eval", 10:20 / 2)
+# across_plots_experiments("min_height_for_eval", 10:20 / 2)
 ```
 
 ```{r}
-across_plots_experiments("min_height_pred", 0:10)
+# across_plots_experiments("min_height_pred", 0:10)
 ```
 
 ```{r}
-across_plots_experiments("min_height_obs", 0:10)
+# across_plots_experiments("min_height_obs", 0:10)
 ```
