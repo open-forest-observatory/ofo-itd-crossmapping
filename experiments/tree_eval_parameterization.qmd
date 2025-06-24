@@ -13,6 +13,7 @@ execute:
 ---
 
 ## Tree matching eval
+This has experiments for the quality of matching based on the edge buffer distance, by evaluating the quality of matches only on the outer 6 meters of the plot.
 
 ```{r}
 library(sf)
