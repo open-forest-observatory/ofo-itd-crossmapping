@@ -220,60 +220,64 @@ drone_footprints_3857 = st_transform(drone_footprints_wgs84, 3857)
 ground_plots_3857 = st_transform(ground_plots_with_metadata, 3857)
 main_extent_3857 = st_transform(main_extent_bbox, 3857)
 
-# Get basemap for California inset
-ca_extent = st_bbox(c(xmin = -125, ymin = 32, xmax = -114, ymax = 42), crs = 4326) |>
+# Get basemap for California inset - extend north by ~50 km (about 0.45 degrees)
+ca_extent_wgs84 = st_bbox(c(xmin = -125, ymin = 32, xmax = -114, ymax = 42.5), crs = 4326) |>
   st_as_sfc() |>
-  st_transform(3857) |>
   st_as_sf()
-basemap_ca = ceramic::cc_location(loc = ca_extent)
+ca_extent_3857 = st_transform(ca_extent_wgs84, 3857)
+basemap_ca = ceramic::cc_location(loc = ca_extent_3857, type = "mapbox.satellite")
 
 # Get basemap for main map
-main_map_extent = st_as_sf(main_extent_bbox) |>
-  st_transform(3857)
-basemap_main = ceramic::cc_location(loc = main_map_extent)
+main_map_extent = st_as_sf(main_extent_bbox)
+main_map_extent_3857 = st_transform(main_map_extent, 3857)
+basemap_main = ceramic::cc_elevation(loc = main_map_extent_3857)
 
 # Transform states for plotting
 states_3857 = st_transform(states, 3857)
 
 # California inset map with extent box and basemap
 ca_inset = ggplot() +
-  geom_spatraster_rgb(data = basemap_ca, alpha = 0.6) +
-  geom_sf(data = states_3857, fill = NA, linewidth = 0.1, color = "black") +
+  geom_spatraster_rgb(data = basemap_ca, alpha = 0.75, maxcell = Inf) +
+  geom_sf(data = states_3857, fill = NA, linewidth = 0.4, color = "black") +
   geom_sf(data = drone_footprints_3857, fill = "red", color = NA) +
-  geom_sf(data = main_extent_3857, fill = NA, color = "blue", linewidth = 0.8) +
+  geom_sf(data = main_extent_3857, fill = NA, color = "orange", linewidth = 0.8) +
   theme_bw(15) +
-  coord_sf(crs = 4326, xlim = c(-125, -114), ylim = c(32, 42)) +
+  coord_sf(crs = 4326, xlim = c(-125, -114), ylim = c(32, 42.5), expand = FALSE) +
   scale_x_continuous(breaks = c(-124, -118)) +
   scale_y_continuous(breaks = c(34, 38, 42)) +
   theme(panel.grid = element_blank(),
-        axis.text = element_text(size = 8),
-        axis.title = element_blank())
+        axis.text = element_text(size = 11.5),
+        axis.title = element_blank(),
+        plot.title = element_text(margin = margin(t = 0))) +
+  labs(title = "(a)")
 
 # Main map of drone footprints with basemap
 drone_footprints_map = ggplot() +
-  geom_spatraster_rgb(data = basemap_main, alpha = 0.6) +
-  geom_sf(data = drone_footprints_3857, fill = "#3B9AB2", color = "black", linewidth = 0.3, alpha = 0.6) +
+  geom_spatraster(data = basemap_main, alpha = 0.90, maxcell = Inf) +
+  scale_fill_viridis_c(name = "Elev. (m)", breaks = seq(0, 3500, 500)) +
   geom_sf(data = ground_plots_3857, color = "white", size = 3.5) +
   geom_sf(data = ground_plots_3857, color = "#E8A735", size = 2) +
-  coord_sf(crs = 4326, 
+  coord_sf(crs = 4326, expand = FALSE,
            xlim = c(footprints_bbox["xmin"] - bbox_buffer, footprints_bbox["xmax"] + bbox_buffer),
            ylim = c(footprints_bbox["ymin"] - bbox_buffer, footprints_bbox["ymax"] + bbox_buffer)) +
+  scale_y_continuous(breaks = seq(39.35, 39.85, 0.1)) +
   theme_bw(15) +
-  labs(x = "Longitude", y = "Latitude") +
-  annotation_scale(pad_x = unit(0.7, "cm"),
-                   pad_y = unit(1, "cm"), 
-                   location = "bl", 
+  annotation_scale(pad_x = unit(0.6, "cm"),
+                   pad_y = unit(0.6, "cm"), 
+                   location = "tr", 
                    text_cex = 1, 
                    bar_cols = c("black", "black"),
                    height = unit(0.01, "cm")) +
-  theme(panel.grid = element_blank())
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(margin = margin(t = 0))) +
+  labs(title = "(b)")
 
 # Combine main map with inset using patchwork
 drone_footprints_map_with_inset = ca_inset + drone_footprints_map + 
-  plot_layout(widths = c(.8, 2))
+  plot_layout(widths = c(.75, 2))
 
 png(file.path(SUMMARIZED_METADATA_OUTPUT_FILEPATH, "drone-footprints-map.png"), 
-    res = 300, width = 3000, height = 1800)
+    res = 500, width = 5000, height = 1800)
 drone_footprints_map_with_inset
 dev.off()
 
