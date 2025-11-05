@@ -186,3 +186,71 @@ write_csv(combined_table,
   file.path(SUMMARIZED_METADATA_OUTPUT_FILEPATH, "selected-plots-and-drone-missions_combined-summary-table.csv"),
   na = ""
 )
+
+
+# Make map of drone footprints with California inset
+
+library(rnaturalearth)
+library(ggspatial)
+library(patchwork)
+
+# Get state boundaries
+states = ne_states(country = "united states of america", returnclass = c("sf"))
+
+# Transform drone footprints to WGS84 for plotting
+drone_footprints_wgs84 = st_transform(drone_footprints_with_metadata, 4326)
+
+# Get bbox of drone footprints with buffer
+footprints_bbox = st_bbox(drone_footprints_wgs84)
+bbox_buffer = 0.075 # degrees
+
+# Create a bbox polygon for the main map extent to show in the inset
+main_extent_bbox = st_bbox(c(
+  xmin = as.numeric(footprints_bbox["xmin"]) - bbox_buffer,
+  ymin = as.numeric(footprints_bbox["ymin"]) - bbox_buffer,
+  xmax = as.numeric(footprints_bbox["xmax"]) + bbox_buffer,
+  ymax = as.numeric(footprints_bbox["ymax"]) + bbox_buffer
+), crs = st_crs(4326)) |> 
+  st_as_sfc()
+
+# California inset map with extent box
+ca_inset = ggplot() +
+  geom_sf(data = states, fill = NA, linewidth = 0.1) +
+  geom_sf(data = drone_footprints_wgs84, fill = "red", color = NA) +
+  geom_sf(data = main_extent_bbox, fill = NA, color = "blue", linewidth = 0.8) +
+  theme_bw(15) +
+  coord_sf(xlim = c(-125, -114), ylim = c(32, 42)) +
+  scale_x_continuous(breaks = c(-124, -118)) +
+  scale_y_continuous(breaks = c(34, 38, 42)) +
+  theme(panel.grid = element_blank(),
+        axis.text = element_text(size = 8),
+        axis.title = element_blank())
+
+# Main map of drone footprints
+drone_footprints_map = ggplot() +
+  geom_sf(data = drone_footprints_wgs84, fill = "#3B9AB2", color = "black", linewidth = 0.3, alpha = 0.6) +
+  geom_sf(data = ground_plots_with_metadata |> st_transform(4326), 
+          color = "white", size = 3.5) +
+  geom_sf(data = ground_plots_with_metadata |> st_transform(4326), 
+          color = "#E8A735", size = 2) +
+  coord_sf(crs = 4326, 
+           xlim = c(footprints_bbox["xmin"] - bbox_buffer, footprints_bbox["xmax"] + bbox_buffer),
+           ylim = c(footprints_bbox["ymin"] - bbox_buffer, footprints_bbox["ymax"] + bbox_buffer)) +
+  theme_bw(15) +
+  annotation_scale(pad_x = unit(0.7, "cm"),
+                   pad_y = unit(1, "cm"), 
+                   location = "bl", 
+                   text_cex = 1, 
+                   bar_cols = c("black", "black"),
+                   height = unit(0.01, "cm"))
+
+# Combine main map with inset using patchwork
+drone_footprints_map_with_inset = ca_inset + drone_footprints_map + 
+  plot_layout(widths = c(.8, 2))
+
+png(file.path(SUMMARIZED_METADATA_OUTPUT_FILEPATH, "drone-footprints-map.png"), 
+    res = 300, width = 3000, height = 1800)
+drone_footprints_map_with_inset
+dev.off()
+
+
