@@ -1,5 +1,4 @@
-# Purpose: Perform preliminary tree detection on CHM to create a preliminary drone-detected tree
-# dataset for determining how to align the field data to the drone data
+# Purpose: Use the preliminary tree detection from the drone imagery as a reference to identify the optimal x-y shift for the ground reference data in order to spatially co-register it to the drone data, and perform the shift.
 
 library(sf)
 library(tidyverse)
@@ -13,7 +12,7 @@ library(furrr)
 # devtools::document("/ofo-share/repos-derek/ofo-r"); devtools::install("/ofo-share/repos-derek/ofo-r"); library(ofo)
 # devtools::load_all("/ofo-share/repos-derek/ofo-r")
 # devtools::load_all("/ofo-share/repos-derek/ofo-r")
-devtools::load_all("/ofo-share/utils/ofo-r")
+devtools::load_all("/ofo-share/repos-derek/ofo-r")
 
 # Data paths
 OBSERVED_UNALIGNED_TREES_DIR = "/ofo-share/ofo-itd-crossmapping_data/field-reference/unaligned/trees/"
@@ -110,10 +109,13 @@ align_plot = function(plot_id) {
 
 }
 
-future::plan("multisession")
-furrr::future_walk(plot_ids, align_plot)
+purrr::walk(plot_ids, align_plot)
 
 
 # Poorly aligned are indexes 5, 13, 22, 23
 plot_ids[c(5, 13, 22, 23)]
 # 0015, 0046, 0105, 0110
+
+# New poorly aligned are 5, 13, 19, 24
+plot_ids[c(5, 13, 19, 24)]
+# 0015, 0046, 0100, 0110
